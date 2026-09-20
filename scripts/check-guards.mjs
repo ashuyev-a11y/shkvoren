@@ -36,7 +36,9 @@ const RULES = [
   {
     id: 'wa-link',
     test: /wa\.me/,
-    allow: ['lib/whatsapp.ts', 'scripts/check-guards.mjs'],
+    // tests/whatsapp.test.mjs проверяет формат ссылки дословно — в этом
+    // и состоит тест контракта. Номер в нём подставной, не номер продавца.
+    allow: ['lib/whatsapp.ts', 'tests/whatsapp.test.mjs', 'scripts/check-guards.mjs'],
     message: 'Ссылка wa.me собирается только в lib/whatsapp.ts (technical-spec §8).',
   },
   {
