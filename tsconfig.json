@@ -13,6 +13,9 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    // Модули lib/ импортируются и Next.js, и тестами через node --test.
+    // Node требует расширение в пути, поэтому оно указывается явно.
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,

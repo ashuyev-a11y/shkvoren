@@ -12,7 +12,7 @@ import type {
   PartsRead,
   PublicPart,
   SheetIssue,
-} from '@/types/part';
+} from '../types/part.ts';
 
 /**
  * Номера колонок листа (0 = A). Порядок зафиксирован в docs/data-model.md §2.

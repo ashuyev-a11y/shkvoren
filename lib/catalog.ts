@@ -8,9 +8,9 @@
  */
 import 'server-only';
 import { unstable_cache, revalidateTag } from 'next/cache';
-import { getValues, partsSheetName, SheetsError } from '@/lib/sheets';
-import { parseSheet } from '@/lib/parts';
-import type { PartsRead } from '@/types/part';
+import { getValues, partsSheetName, SheetsError } from './sheets.ts';
+import { parseSheet } from './parts.ts';
+import type { PartsRead } from '../types/part.ts';
 
 /** Тег кэша. Кнопка «Обновить сейчас» в админке сбрасывает именно его. */
 export const PARTS_CACHE_TAG = 'parts';
