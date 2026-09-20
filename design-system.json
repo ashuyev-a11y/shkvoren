@@ -1,0 +1,6 @@
+{"v":3,"layout":"files","createdOnFiles":{"v":1,"at":"2026-09-18T18:38:45Z"},"title":"ШКВОРЕНЬ","namespace":"Shkvoren","libraries":[],"sections":{},"groups":["Logos"],
+"assetGroups":{"Logos":{"name":"Logos","tile":"l","order":["shkvoren-mark.svg","shkvoren-mark-mono.svg"],"files":{
+"shkvoren-mark.svg":{"name":"shkvoren-mark.svg","blob":"f02d106d7e8cf028e3528f70964da197","size":415,"type":"image/svg+xml"},
+"shkvoren-mark-mono.svg":{"name":"shkvoren-mark-mono.svg","blob":"b27112f83dbd1352b5b24aae85f1b35b","size":422,"type":"image/svg+xml"}}}},
+"blobs":{},"docs":{"readme":"project/README.md","sections":[]},
+"lastChange":{"by":"Дмитрий Ашуев","at":"2026-09-18T18:38:45Z","via":"Claude chat","note":"Первая версия фирменного стиля: цвета, шрифты, знак, брендбук, обложка."}}
