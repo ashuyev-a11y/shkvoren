@@ -42,7 +42,15 @@ const RULES = [
   {
     id: 'google-key',
     test: /GOOGLE_PRIVATE_KEY/,
-    allow: ['lib/sheets.ts', '.env.example', 'scripts/check-guards.mjs'],
+    // scripts/check-sheet.mjs — диагностика, исполняется в обычном Node:
+    // импортировать lib/sheets.ts он не может из-за 'server-only' и next/cache,
+    // поэтому повторяет получение токена у себя. В бандл приложения не входит.
+    allow: [
+      'lib/sheets.ts',
+      'scripts/check-sheet.mjs',
+      '.env.example',
+      'scripts/check-guards.mjs',
+    ],
     message: 'Ключ сервисного аккаунта читается только в lib/sheets.ts (technical-spec §4).',
   },
   {
