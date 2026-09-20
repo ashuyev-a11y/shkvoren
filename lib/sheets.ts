@@ -18,13 +18,16 @@ const SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
 
 /** Ошибка обращения к таблице. Отличается от ошибок разбора данных. */
 export class SheetsError extends Error {
-  constructor(
-    message: string,
-    /** Исходный ответ Google — для журнала, не для показа покупателю. */
-    readonly detail?: string
-  ) {
+  /** Исходный ответ Google — для журнала, не для показа покупателю. */
+  readonly detail: string | undefined;
+
+  // Поле объявлено явно, а не параметром конструктора: Node исполняет
+  // модули lib/ в тестах через стирание типов, а parameter property
+  // в этом режиме не поддерживается.
+  constructor(message: string, detail?: string) {
     super(message);
     this.name = 'SheetsError';
+    this.detail = detail;
   }
 }
 
