@@ -1,26 +1,54 @@
 /**
- * Первый экран опт-витрины.
+ * Опт-витрина — каталог списком.
  *
- * Сейчас — только шапка экрана: заголовок, слоган и плашка точки выдачи.
- * Поиск (задача №6), список позиций и фильтры (задача №7) добавляются сюда же
- * после подключения Google-таблицы; они не сверстаны заранее, потому что
- * визуальный контракт экрана (docs/design/) ещё не передан.
- *
- * Все тексты — дословно из README (3).md, раздел «Голос».
+ * Страница серверная: таблица читается сервисным аккаунтом на сервере
+ * с кэшем 4 минуты (решение 1), в браузер уходит только публичный срез
+ * позиции (решение 5). Фильтрация и поиск — в CatalogClient.
  */
-export default function HomePage() {
+import { CatalogClient } from '../components/CatalogClient';
+import { getParts } from '../lib/catalog';
+import { collectCategories, toPublic } from '../lib/parts';
+
+/*
+ * Страница рендерится на запрос, а не при сборке.
+ *
+ * На сборке переменных Google нет (на Vercel они доступны только в рантайме
+ * функции), и статическая версия запеклась бы с сообщением об ошибке —
+ * покупатель видел бы «каталог недоступен» до первой ревалидации.
+ * Дороговизны в этом нет: getParts держит свой кэш на 4 минуты,
+ * обращения к таблице на каждый запрос не происходит.
+ */
+export const dynamic = 'force-dynamic';
+
+export default async function HomePage() {
+  let parts;
+  try {
+    const read = await getParts();
+    parts = read.parts.map(toPublic);
+  } catch (error) {
+    // Каталог недоступен — показываем это прямо, а не пустой список:
+    // пустая витрина выглядит как «товар кончился», что неправда.
+    console.error('Каталог недоступен:', error);
+
+    return (
+      <section>
+        <h1 className="t-display m-0">Запчасти ГАЗ и УАЗ</h1>
+        <p className="t-body border-line bg-surface-raised mt-6 mb-0 rounded-md border px-6 py-6">
+          Каталог временно недоступен. Обновите страницу через минуту или напишите нам.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section>
       <h1 className="t-display m-0">Запчасти ГАЗ и УАЗ</h1>
 
-      <p className="t-body mt-2 mb-0 text-ink-muted">
-        Новые. В наличии в Уральске.
+      <p className="t-body text-ink-muted mt-2 mb-6">
+        Новые. В наличии в Уральске. Забрать сегодня на Салеме.
       </p>
 
-      {/* Плашка «Забрать сегодня» — graphite (README (3).md, раздел «Цвет») */}
-      <p className="t-body bg-graphite text-on-graphite mt-6 mb-0 inline-block rounded-md px-4 py-3">
-        Забрать сегодня на Салеме
-      </p>
+      <CatalogClient parts={parts} categories={collectCategories(parts)} />
     </section>
   );
 }

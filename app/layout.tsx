@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import { Unbounded, Onest, JetBrains_Mono } from 'next/font/google';
+import Link from 'next/link';
+import { CartButton } from '../components/CartButton';
+import { Toast } from '../components/Toast';
 import '../styles/globals.css';
 
 /**
@@ -42,18 +45,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {/* Шапка — graphite, текст on-graphite (README (3).md, раздел «Цвет») */}
         <header className="bg-graphite text-on-graphite">
-          <div className="mx-auto flex max-w-[1280px] items-center px-4 py-3 md:px-8">
+          <div className="mx-auto flex max-w-[1280px] items-center justify-between px-4 py-3 md:px-8">
             {/*
               Вордмарк гарнитурой Unbounded 800, прописными, трекинг −1%.
               Знак (shkvoren-mark.svg) в репозитории отсутствует — см.
               docs/technical-spec.md §9, блокирующий вопрос №6.
             */}
-            <span
+            <Link
+              href="/"
               className="t-title"
               style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
             >
               ШКВОРЕНЬ
-            </span>
+            </Link>
+
+            <CartButton />
           </div>
         </header>
 
@@ -65,6 +71,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <p className="t-small m-0">Запчасти ГАЗ и УАЗ. Новые. В наличии в Уральске.</p>
           </div>
         </footer>
+
+        <Toast />
       </body>
     </html>
   );

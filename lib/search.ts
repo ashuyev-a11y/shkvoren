@@ -14,7 +14,18 @@
 // Пути относительные, а не через алиас @/: модули lib/ импортируются
 // не только Next.js, но и тестами через node --test, который алиас не знает.
 import { normalizeArticle } from './parts.ts';
-import type { AdminPart } from '../types/part.ts';
+
+/**
+ * Минимум, нужный поиску. Подходят и AdminPart, и PublicPart:
+ * витрина фильтрует в браузере, где служебных полей нет, а articleNorm
+ * считается на месте — normalizeArticle чистая функция без ввода-вывода.
+ */
+export type Searchable = {
+  id: number;
+  title: string;
+  article: string | null;
+  articleNorm?: string;
+};
 
 /** Минимальная длина запроса. Короче — искать нечего, вернётся пусто. */
 export const MIN_QUERY_LENGTH = 2;
@@ -81,22 +92,24 @@ type Match = { rank: number; score: number };
  * Возвращает null, если позиция не подходит.
  */
 function matchPart(
-  part: AdminPart,
+  part: Searchable,
   queryNorm: string,
   queryArticle: string,
   queryWords: string[]
 ): Match | null {
   // --- По артикулу ---------------------------------------------------------
-  if (queryArticle.length > 0 && part.articleNorm.length > 0) {
-    if (part.articleNorm === queryArticle) {
+  const articleNorm = part.articleNorm ?? normalizeArticle(part.article);
+
+  if (queryArticle.length > 0 && articleNorm.length > 0) {
+    if (articleNorm === queryArticle) {
       return { rank: RANK.articleExact, score: 1 };
     }
     if (queryArticle.length >= MIN_PARTIAL_LENGTH) {
-      if (part.articleNorm.startsWith(queryArticle)) {
-        return { rank: RANK.articlePrefix, score: queryArticle.length / part.articleNorm.length };
+      if (articleNorm.startsWith(queryArticle)) {
+        return { rank: RANK.articlePrefix, score: queryArticle.length / articleNorm.length };
       }
-      if (part.articleNorm.includes(queryArticle)) {
-        return { rank: RANK.articleContains, score: queryArticle.length / part.articleNorm.length };
+      if (articleNorm.includes(queryArticle)) {
+        return { rank: RANK.articleContains, score: queryArticle.length / articleNorm.length };
       }
     }
   }
@@ -132,14 +145,18 @@ function matchPart(
  * то есть в порядке строк таблицы. Случайной перестановки выдачи между
  * запросами не происходит.
  */
-export function searchParts(parts: AdminPart[], query: string, limit = 50): AdminPart[] {
+export function searchParts<T extends Searchable>(
+  parts: T[],
+  query: string,
+  limit = 50
+): T[] {
   const queryNorm = normalizeText(query);
   if (queryNorm.length < MIN_QUERY_LENGTH) return [];
 
   const queryArticle = normalizeArticle(query);
   const queryWords = queryNorm.split(' ').filter((word) => word.length > 0);
 
-  const found: { part: AdminPart; match: Match }[] = [];
+  const found: { part: T; match: Match }[] = [];
   for (const part of parts) {
     const match = matchPart(part, queryNorm, queryArticle, queryWords);
     if (match !== null) found.push({ part, match });
