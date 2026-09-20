@@ -223,6 +223,17 @@ export function CartClient() {
           </p>
         )}
 
+        {/*
+          Бланк печатается до отправки: номер заказа присваивается листом
+          «Заказы» в момент записи, и на распечатке его ещё нет.
+        */}
+        <Link
+          href="/print"
+          className="t-body-strong border-control-border mt-3 flex w-full items-center justify-center rounded-md border px-6 py-3"
+        >
+          Образец бланка
+        </Link>
+
         <p className="t-small text-ink-muted mt-4 mb-0">
           Оплата и выдача — на месте, на Салеме. Заказ ничего не резервирует до
           подтверждения.
