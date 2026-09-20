@@ -1,0 +1,99 @@
+/*
+ * Глобальные стили ШКВОРЕНЬ.
+ *
+ * Порядок важен: сначала сгенерированные токены (переменные), затем Tailwind,
+ * затем @theme — он пробрасывает те же переменные в утилиты Tailwind,
+ * чтобы значение существовало ровно в одном месте (tokens.json).
+ */
+@import '../styles/tokens.css';
+@import 'tailwindcss';
+
+@theme inline {
+  /* Цвет — имена утилит совпадают с именами токенов: bg-surface, text-ink */
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-control-border: var(--control-border);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-graphite: var(--graphite);
+  --color-on-graphite: var(--on-graphite);
+  --color-signal: var(--signal);
+  --color-on-signal: var(--on-signal);
+  --color-signal-soft: var(--signal-soft);
+  --color-signal-ink: var(--signal-ink);
+  --color-uaz: var(--uaz);
+  --color-uaz-soft: var(--uaz-soft);
+  --color-gaz: var(--gaz);
+  --color-gaz-soft: var(--gaz-soft);
+  --color-stock: var(--stock);
+  --color-danger: var(--danger);
+  --color-whatsapp: var(--whatsapp);
+  --color-on-whatsapp: var(--on-whatsapp);
+  --color-focus: var(--focus);
+
+  /* Отступы — шаг 4px, только перечисленные значения */
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-6: var(--space-6);
+  --spacing-8: var(--space-8);
+  --spacing-12: var(--space-12);
+
+  /* Радиусы */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-full: var(--radius-full);
+
+  /* Гарнитуры */
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+/* --- База ---------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Тёмная тема вне MVP: фиксируем светлую явно, чтобы системная настройка
+     не перекрасила интерфейс наполовину. */
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  /* Основной текст 16px — меньше на мобильном не ставить (README (3).md) */
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Фокус клавиатуры — токен focus-ring, снимать запрещено (README (3).md) */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Минимальная зона нажатия — палец в перчатке (space-12 = 48px) */
+button,
+a[role='button'],
+input,
+select {
+  min-height: var(--space-12);
+}
+
+/* Каталожный номер всегда моноширинный и выделяемый */
+.part-number {
+  font-family: var(--font-mono);
+  user-select: all;
+}

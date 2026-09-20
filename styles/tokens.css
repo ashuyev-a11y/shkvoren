@@ -1,0 +1,194 @@
+/*
+ * СГЕНЕРИРОВАННЫЙ ФАЙЛ — НЕ РЕДАКТИРОВАТЬ.
+ * Источник: tokens.json. Пересоздаётся: npm run tokens
+ * Дизайн-система: ШКВОРЕНЬ, версия 1
+ */
+
+:root {
+  /* Цвет */
+  --surface: #F3F2EE;
+  --surface-raised: #FFFFFF;
+  --surface-sunken: #E7E5DF;
+  --line: #D4D1C9;
+  --control-border: #8A8F96;
+  --ink: #15171A;
+  --ink-muted: #585D64;
+  --graphite: #23272C;
+  --on-graphite: #F1F0EB;
+  --signal: #F2B705;
+  --on-signal: #15171A;
+  --signal-soft: #FCEFC2;
+  --signal-ink: #855600;
+  --uaz: #526030;
+  --uaz-soft: #E6EAD6;
+  --gaz: #1D4F91;
+  --gaz-soft: #DDE7F5;
+  --stock: #186F38;
+  --danger: #B3261E;
+  --whatsapp: #0F7A43;
+  --on-whatsapp: #FFFFFF;
+  --focus: #1D4F91;
+
+  /* Гарнитуры */
+  --font-display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --font-sans: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  /* Типографика */
+  --text-display-family: var(--font-display);
+  --text-display-size: 40px;
+  --text-display-line: 44px;
+  --text-display-weight: 800;
+  --text-display-tracking: -0.01em;
+  --text-title-family: var(--font-display);
+  --text-title-size: 26px;
+  --text-title-line: 32px;
+  --text-title-weight: 700;
+  --text-heading-family: var(--font-sans);
+  --text-heading-size: 20px;
+  --text-heading-line: 26px;
+  --text-heading-weight: 700;
+  --text-body-family: var(--font-sans);
+  --text-body-size: 16px;
+  --text-body-line: 24px;
+  --text-body-weight: 400;
+  --text-body-strong-family: var(--font-sans);
+  --text-body-strong-size: 16px;
+  --text-body-strong-line: 24px;
+  --text-body-strong-weight: 600;
+  --text-price-family: var(--font-sans);
+  --text-price-size: 22px;
+  --text-price-line: 28px;
+  --text-price-weight: 700;
+  --text-price-tracking: -0.01em;
+  --text-small-family: var(--font-sans);
+  --text-small-size: 14px;
+  --text-small-line: 20px;
+  --text-small-weight: 400;
+  --text-caption-family: var(--font-sans);
+  --text-caption-size: 12px;
+  --text-caption-line: 16px;
+  --text-caption-weight: 600;
+  --text-caption-tracking: 0.04em;
+  --text-part-number-family: var(--font-mono);
+  --text-part-number-size: 15px;
+  --text-part-number-line: 20px;
+  --text-part-number-weight: 600;
+  --text-part-number-lg-family: var(--font-mono);
+  --text-part-number-lg-size: 22px;
+  --text-part-number-lg-line: 28px;
+  --text-part-number-lg-weight: 700;
+
+  /* Отступы */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Радиусы */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-full: 9999px;
+
+  /* Тени */
+  --shadow-sm: 0 1px 2px #15171A14;
+  --focus-ring: 0 0 0 2px #F3F2EE, 0 0 0 4px #1D4F91;
+}
+
+[data-theme="dark"] {
+  --surface: #111315;
+  --surface-raised: #1A1D21;
+  --surface-sunken: #22262B;
+  --line: #343940;
+  --control-border: #6B717A;
+  --ink: #F1F0EB;
+  --ink-muted: #A7ACB3;
+  --graphite: #2C3137;
+  --on-graphite: #F1F0EB;
+  --signal: #F5BE1B;
+  --on-signal: #15171A;
+  --signal-soft: #3A3010;
+  --signal-ink: #F5BE1B;
+  --uaz: #B5C38A;
+  --uaz-soft: #262B1A;
+  --gaz: #8DB4EE;
+  --gaz-soft: #172234;
+  --stock: #5FCB86;
+  --danger: #F2766B;
+  --whatsapp: #25D366;
+  --on-whatsapp: #0B1F13;
+  --focus: #F5BE1B;
+
+  --shadow-sm: 0 1px 2px #00000099;
+  --focus-ring: 0 0 0 2px #111315, 0 0 0 4px #F5BE1B;
+}
+
+/* Классы типографики: по одному на стиль из tokens.json */
+.t-display {
+  font-family: var(--text-display-family);
+  font-size: var(--text-display-size);
+  line-height: var(--text-display-line);
+  font-weight: var(--text-display-weight);
+  letter-spacing: var(--text-display-tracking);
+}
+.t-title {
+  font-family: var(--text-title-family);
+  font-size: var(--text-title-size);
+  line-height: var(--text-title-line);
+  font-weight: var(--text-title-weight);
+}
+.t-heading {
+  font-family: var(--text-heading-family);
+  font-size: var(--text-heading-size);
+  line-height: var(--text-heading-line);
+  font-weight: var(--text-heading-weight);
+}
+.t-body {
+  font-family: var(--text-body-family);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  font-weight: var(--text-body-weight);
+}
+.t-body-strong {
+  font-family: var(--text-body-strong-family);
+  font-size: var(--text-body-strong-size);
+  line-height: var(--text-body-strong-line);
+  font-weight: var(--text-body-strong-weight);
+}
+.t-price {
+  font-family: var(--text-price-family);
+  font-size: var(--text-price-size);
+  line-height: var(--text-price-line);
+  font-weight: var(--text-price-weight);
+  letter-spacing: var(--text-price-tracking);
+  font-variant-numeric: tabular-nums;
+}
+.t-small {
+  font-family: var(--text-small-family);
+  font-size: var(--text-small-size);
+  line-height: var(--text-small-line);
+  font-weight: var(--text-small-weight);
+}
+.t-caption {
+  font-family: var(--text-caption-family);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+  font-weight: var(--text-caption-weight);
+  letter-spacing: var(--text-caption-tracking);
+  text-transform: uppercase;
+}
+.t-part-number {
+  font-family: var(--text-part-number-family);
+  font-size: var(--text-part-number-size);
+  line-height: var(--text-part-number-line);
+  font-weight: var(--text-part-number-weight);
+}
+.t-part-number-lg {
+  font-family: var(--text-part-number-lg-family);
+  font-size: var(--text-part-number-lg-size);
+  line-height: var(--text-part-number-lg-line);
+  font-weight: var(--text-part-number-lg-weight);
+}
