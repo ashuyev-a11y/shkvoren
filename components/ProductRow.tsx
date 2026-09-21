@@ -42,8 +42,14 @@ export function ProductRow({ part }: { part: PublicPart }) {
             кликабельна, но в разметке остаётся обычный <a>, доступный с
             клавиатуры. Интерактивные элементы ниже лежат выше по z-index.
           */}
+          {/*
+            prefetch={false}: каталог показывает все позиции одним списком,
+            и Next.js подгружал бы карточку каждой строки, попавшей в экран, —
+            сотни запросов подряд, из-за которых страница переставала отвечать.
+          */}
           <Link
             href={`/product/${part.id}`}
+            prefetch={false}
             className="t-body-strong before:absolute before:inset-0 before:content-['']"
           >
             {part.title}

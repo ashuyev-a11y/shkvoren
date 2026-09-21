@@ -184,9 +184,12 @@ export async function getValues(range: string): Promise<string[][]> {
  */
 export async function appendRow(sheet: string, row: string[]): Promise<number> {
   const range = `${sheet}!A:H`;
+  // RAW, а не USER_ENTERED: телефон, начинающийся с плюса, Google принимал
+  // за формулу и записывал в лист «#ERROR!» вместо контакта покупателя.
+  // Заказ — это данные, вычислять в нём нечего.
   const response = await call(
     `/values/${encodeURIComponent(range)}:append` +
-      `?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      `?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
     { method: 'POST', body: JSON.stringify({ values: [row] }) }
   );
 
