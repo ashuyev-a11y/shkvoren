@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Unbounded, Onest, JetBrains_Mono } from 'next/font/google';
 import Link from 'next/link';
 import { CartButton } from '../components/CartButton';
+import { LogoMark } from '../components/LogoMark';
 import { Toast } from '../components/Toast';
 import '../styles/globals.css';
 
@@ -47,15 +48,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="bg-graphite text-on-graphite">
           <div className="mx-auto flex max-w-[1280px] items-center justify-between px-4 py-3 md:px-8">
             {/*
-              Вордмарк гарнитурой Unbounded 800, прописными, трекинг −1%.
-              Знак (shkvoren-mark.svg) в репозитории отсутствует — см.
-              docs/technical-spec.md §9, блокирующий вопрос №6.
+              Логотип: знак слева, вордмарк гарнитурой Unbounded 800,
+              прописными, трекинг −1%, зазор space-2 (README (3).md).
+              На graphite ставится цветной знак — так же требует брендбук.
             */}
             <Link
               href="/"
-              className="t-title"
-              style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
+              className="t-title inline-flex items-center"
+              style={{
+                fontFamily: 'var(--font-display)',
+                letterSpacing: '-0.01em',
+                gap: 'var(--space-2)',
+              }}
             >
+              <LogoMark />
               ШКВОРЕНЬ
             </Link>
 

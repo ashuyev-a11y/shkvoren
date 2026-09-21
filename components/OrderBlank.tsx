@@ -15,6 +15,7 @@ import { cartTotal, countItems, useCart } from '../lib/cart';
 import { formatPrice } from '../lib/format';
 import { SELLER_NAME, sellerLines } from '../lib/seller';
 import { EmptyState } from './EmptyState';
+import { LogoMark } from './LogoMark';
 
 /** Дата печати в виде, привычном на бумаге: 20.09.2026. */
 function printDate(): string {
@@ -76,10 +77,16 @@ export function OrderBlank() {
         {/* Летерхед */}
         <header className="border-line flex flex-wrap items-start justify-between gap-4 border-b pb-4">
           <div>
+            {/* Логотип по брендбуку: знак слева, зазор space-2 */}
             <p
-              className="t-title m-0"
-              style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
+              className="t-title m-0 flex items-center"
+              style={{
+                fontFamily: 'var(--font-display)',
+                letterSpacing: '-0.01em',
+                gap: 'var(--space-2)',
+              }}
             >
+              <LogoMark />
               {SELLER_NAME}
             </p>
             {lines.map((line) => (
