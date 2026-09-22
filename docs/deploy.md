@@ -51,7 +51,7 @@
 ## 2. Переменные окружения
 
 Полный список с комментариями — в `.env.example`. В Vercel заводятся все
-девять, для окружений Production и Preview.
+двенадцать, для окружений Production, Preview и Development.
 
 | Переменная | Откуда берётся |
 | --- | --- |
@@ -65,6 +65,8 @@
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | номер продавца, только цифры, без `+` и пробелов |
 | `NEXT_PUBLIC_SELLER_ADDRESS` | адрес точки на Салеме для летерхеда бланка |
 | `NEXT_PUBLIC_SELLER_PHONE` | телефон продавца для летерхеда |
+| `TELEGRAM_BOT_TOKEN` | токен бота от `@BotFather` |
+| `TELEGRAM_CHAT_ID` | идентификатор чата заказов; у групп он отрицательный |
 
 ### `GOOGLE_PRIVATE_KEY` — единственное место, где легко ошибиться
 
@@ -86,6 +88,38 @@ node -e "console.log(JSON.stringify(require('./ключ.json').private_key))"
 ```
 
 Скопировать без внешних кавычек.
+
+### Telegram: куда приходят уведомления о заказах
+
+Решение 17: переход в WhatsApp не отправляет сообщение за покупателя, поэтому
+о новом заказе продавца извещает бот. Порядок такой:
+
+1. `@BotFather` → `/newbot` → получить токен.
+2. Добавить бота в рабочую группу.
+3. Узнать `chat_id`: отправить в группу любое сообщение и открыть
+   `https://api.telegram.org/bot<токен>/getUpdates` — идентификатор
+   в поле `message.chat.id`, у групп со знаком минус.
+4. Проверить канал до деплоя:
+
+```bash
+curl -s -X POST "https://api.telegram.org/bot<токен>/sendMessage" \
+  -H "Content-Type: application/json" \
+  -d '{"chat_id":"<chat_id>","text":"проверка"}'
+```
+
+Пока переменные не заведены, `notifyNewOrder` пишет в лог «Telegram
+не настроен» и выходит. Заказы при этом оформляются как обычно:
+уведомление — дополнительный канал, а не часть потока заказа.
+
+**Грабли CLI:** `vercel env add <ключ> preview` бесконечно переспрашивает
+ветку — не помогают ни `--yes`, ни `--value`. Для Preview переменная
+заводится только через API:
+
+```bash
+curl -s -X POST "https://api.vercel.com/v10/projects/<projectId>/env?teamId=<teamId>" \
+  -H "Authorization: Bearer <токен>" -H "Content-Type: application/json" \
+  -d '{"key":"TELEGRAM_CHAT_ID","value":"...","type":"encrypted","target":["preview"]}'
+```
 
 ### Последние две переменные
 
