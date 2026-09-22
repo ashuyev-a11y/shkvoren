@@ -6,13 +6,14 @@
  * возвращается ссылка на WhatsApp. Заказ, не записанный в таблицу,
  * не существует.
  */
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { getParts } from '@/lib/catalog';
 import { isValidPhone } from '@/lib/format';
 import { OrderError, buildLines } from '@/lib/orders';
 import { createOrder } from '@/lib/orders-write';
 import { SheetsError } from '@/lib/sheets';
+import { notifyNewOrder } from '@/lib/telegram';
 import { buildWhatsappUrl } from '@/lib/whatsapp';
 
 /**
@@ -49,6 +50,17 @@ export async function POST(request: Request) {
 
     // Порядок важен: запись — раньше ссылки.
     const order = await createOrder(lines, parsed.data.phone);
+
+    /*
+     * Уведомление продавца (решение 17). after() выполняет работу после
+     * ответа покупателю: он не ждёт Telegram, а функция при этом не
+     * обрывается на середине, как оборвался бы просто не дождавшийся
+     * промис в serverless-окружении.
+     *
+     * Ошибки notifyNewOrder не выбрасывает: заказ уже в листе, и падение
+     * дополнительного канала не должно показываться покупателю как отказ.
+     */
+    after(() => notifyNewOrder(order));
 
     return NextResponse.json({
       orderNo: order.orderNo,
