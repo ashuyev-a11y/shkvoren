@@ -24,9 +24,31 @@ const Body = z.object({
   // Телефон обязателен: без него в логе заказа нет контакта (решение 2).
   phone: z.string().refine(isValidPhone, 'Укажите телефон — без него мы не сможем с вами связаться.'),
   items: z
-    .array(z.object({ id: z.number().int().positive(), qty: z.number().int().positive() }))
+    .array(
+      z.object({
+        id: z.number().int().positive(),
+        qty: z.number().int().positive(),
+        /*
+         * Цена, предложенная покупателем (решение 18). Единственная цена,
+         * которую сервер принимает от браузера: прайсовую он всё равно
+         * берёт из таблицы, а эта не заменяет её, а сохраняется рядом.
+         * Проверка только базовая — целое больше нуля, отсечек по проценту
+         * от прайса нет: цена в таблице и так себестоимость (решение 0).
+         */
+        offeredPrice: z
+          .number()
+          .int('Предложенная цена должна быть целым числом.')
+          .positive('Предложенная цена должна быть больше нуля.')
+          .nullish(),
+      })
+    )
     .min(1, 'Добавьте хотя бы одну позицию.')
     .max(100),
+  offeredTotal: z
+    .number()
+    .int('Предложенная сумма должна быть целым числом.')
+    .positive('Предложенная сумма должна быть больше нуля.')
+    .nullish(),
 });
 
 export async function POST(request: Request) {
@@ -49,7 +71,7 @@ export async function POST(request: Request) {
     const lines = buildLines(parsed.data.items, read.parts);
 
     // Порядок важен: запись — раньше ссылки.
-    const order = await createOrder(lines, parsed.data.phone);
+    const order = await createOrder(lines, parsed.data.phone, parsed.data.offeredTotal ?? null);
 
     /*
      * Уведомление продавца (решение 17). after() выполняет работу после
@@ -65,7 +87,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       orderNo: order.orderNo,
       total: order.total,
-      whatsappUrl: buildWhatsappUrl(order.lines, order.phone),
+      whatsappUrl: buildWhatsappUrl(order.lines, order.phone, order.offeredTotal),
     });
   } catch (error) {
     // Ошибка состава заказа — вина данных запроса, текст можно показать.

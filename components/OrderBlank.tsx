@@ -11,7 +11,7 @@
 'use client';
 
 import Link from 'next/link';
-import { cartTotal, countItems, useCart } from '../lib/cart';
+import { cartTotal, countItems, effectiveCartTotal, useCart } from '../lib/cart';
 import { formatPrice } from '../lib/format';
 import { SELLER_NAME, sellerLines } from '../lib/seller';
 import { EmptyState } from './EmptyState';
@@ -29,6 +29,7 @@ export function OrderBlank() {
   const items = useCart((s) => s.items);
   const phone = useCart((s) => s.phone);
   const hydrated = useCart((s) => s.hydrated);
+  const offeredTotal = useCart((s) => s.offeredTotal);
 
   if (!hydrated) {
     return <p className="t-body text-ink-muted">Готовим бланк…</p>;
@@ -52,6 +53,10 @@ export function OrderBlank() {
   }
 
   const lines = sellerLines();
+
+  // Итог по прайсу и итог, предложенный покупателем (решение 18).
+  const listSum = cartTotal(items);
+  const offered = effectiveCartTotal(items, offeredTotal);
 
   return (
     <>
@@ -141,6 +146,9 @@ export function OrderBlank() {
                   className="t-body px-2 py-2 text-right align-top"
                   style={{ fontVariantNumeric: 'tabular-nums' }}
                 >
+                  {/* На бумаге всегда цена прайса: бланк — документ для
+                      сверки на месте, а предложение ещё не подтверждено
+                      продавцом (решение 18). */}
                   {formatPrice(item.price)}
                 </td>
                 <td
@@ -148,6 +156,11 @@ export function OrderBlank() {
                   style={{ fontVariantNumeric: 'tabular-nums' }}
                 >
                   {formatPrice(item.price * item.qty)}
+                  {item.offeredPrice !== null && (
+                    <span className="t-small text-ink-muted block">
+                      предложено: {formatPrice(item.offeredPrice)}/шт
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}
@@ -168,12 +181,33 @@ export function OrderBlank() {
                 {formatPrice(cartTotal(items))}
               </td>
             </tr>
+
+            {/*
+              Строка торга печатается отдельно и только при торге: итог
+              по прайсу остаётся на своём месте, чтобы на прилавке было
+              видно обе суммы — заявленную и предложенную (решение 18).
+            */}
+            {offered !== listSum && (
+              <tr>
+                <td colSpan={4} className="t-body px-2 py-3 text-right">
+                  Предложение покупателя
+                </td>
+                <td
+                  className="t-price px-2 py-3 text-right"
+                  style={{ fontVariantNumeric: 'tabular-nums' }}
+                >
+                  {formatPrice(offered)}
+                </td>
+              </tr>
+            )}
           </tfoot>
         </table>
 
         <p className="t-small text-ink-muted mt-6 mb-0">
           Бланк для сверки на месте. Цены действуют на дату печати, наличие
           подтверждается при выдаче.
+          {offered !== listSum &&
+            ' Предложенная цена не подтверждена: её согласуют при выдаче.'}
         </p>
       </article>
     </>

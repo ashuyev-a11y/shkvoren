@@ -183,7 +183,8 @@ export async function getValues(range: string): Promise<string[][]> {
  * @returns номер строки, в которую попала запись
  */
 export async function appendRow(sheet: string, row: string[]): Promise<number> {
-  const range = `${sheet}!A:H`;
+  // A:J — колонки I и J добавлены вместе с торгом (решение 18).
+  const range = `${sheet}!A:J`;
   // RAW, а не USER_ENTERED: телефон, начинающийся с плюса, Google принимал
   // за формулу и записывал в лист «#ERROR!» вместо контакта покупателя.
   // Заказ — это данные, вычислять в нём нечего.

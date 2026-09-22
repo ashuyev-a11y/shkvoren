@@ -27,12 +27,22 @@ export type CartItem = {
   qty: number;
   /** Сколько было на складе, когда позицию добавили. Потолок степпера. */
   stock: number;
+  /**
+   * Цена за штуку, предложенная покупателем (решение 18). null — торга нет.
+   * Хранится рядом с прайсовой, а не вместо неё: продавец должен видеть обе.
+   */
+  offeredPrice: number | null;
 };
 
 type CartState = {
   items: CartItem[];
   /** Телефон покупателя — обязателен по решению 2. */
   phone: string;
+  /**
+   * Сумма за весь заказ, предложенная покупателем (решение 18).
+   * null — торга за заказ нет, итог считается по строкам.
+   */
+  offeredTotal: number | null;
   /**
    * Прочитано ли сохранённое состояние из localStorage.
    * До этого момента счётчики не показываются: серверная разметка
@@ -44,7 +54,25 @@ type CartState = {
   remove: (id: number) => void;
   clear: () => void;
   setPhone: (phone: string) => void;
+  /** Задать или снять (null) предложение по позиции. */
+  setOfferedPrice: (id: number, price: number | null) => void;
+  /** Задать или снять (null) предложение за весь заказ. */
+  setOfferedTotal: (total: number | null) => void;
 };
+
+/**
+ * Привести предложение покупателя к виду, пригодному для отправки.
+ *
+ * Всё, что не целое число больше нуля, считается снятым предложением:
+ * пустое поле, минус, дробь и мусор из вставки буфера обмена ведут себя
+ * одинаково — торга нет. Валидация по решению 18 только такая: отсечек
+ * «не ниже прайса» нет, цена в таблице и так себестоимость.
+ */
+function normalizeOffer(value: number | null): number | null {
+  if (value === null || !Number.isFinite(value)) return null;
+  const whole = Math.trunc(value);
+  return whole > 0 ? whole : null;
+}
 
 /** Количество, ограниченное складом: ниже нуля и выше остатка не уходим. */
 function clampQty(qty: number, stock: number): number {
@@ -57,6 +85,7 @@ export const useCart = create<CartState>()(
     (set) => ({
       items: [],
       phone: '',
+      offeredTotal: null,
       hydrated: false,
 
       /**
@@ -77,6 +106,9 @@ export const useCart = create<CartState>()(
                 item.id === part.id
                   ? // Снимок обновляем целиком: цена и остаток могли измениться
                     // в таблице, пока корзина лежала в localStorage.
+                    // Предложение покупателя сохраняется: оно принадлежит ему,
+                    // а не таблице, и сбрасывать его при изменении количества
+                    // значило бы молча отменить торг.
                     { ...item, qty: next, price: part.price, stock: part.qty }
                   : item
               ),
@@ -94,20 +126,37 @@ export const useCart = create<CartState>()(
                 price: part.price,
                 qty: next,
                 stock: part.qty,
+                // Новая позиция всегда по прайсу: торг начинает покупатель.
+                offeredPrice: null,
               },
             ],
           };
         }),
 
       remove: (id) => set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
-      clear: () => set({ items: [] }),
+      // Предложение за заказ снимается вместе с корзиной: сумма за «весь
+      // заказ» без самого заказа смысла не имеет.
+      clear: () => set({ items: [], offeredTotal: null }),
       setPhone: (phone) => set({ phone }),
+
+      setOfferedPrice: (id, price) =>
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id ? { ...item, offeredPrice: normalizeOffer(price) } : item
+          ),
+        })),
+
+      setOfferedTotal: (total) => set({ offeredTotal: normalizeOffer(total) }),
     }),
     {
       name: 'shkvoren-cart',
       // Флаг hydrated в localStorage не сохраняется: он описывает текущую
       // загрузку страницы, а не данные покупателя.
-      partialize: (state) => ({ items: state.items, phone: state.phone }),
+      partialize: (state) => ({
+        items: state.items,
+        phone: state.phone,
+        offeredTotal: state.offeredTotal,
+      }),
       onRehydrateStorage: () => (state) => {
         // Флаг ставится мутацией переданного состояния, а не useCart.setState:
         // колбэк выполняется до слияния, и записанное через setState значение
@@ -133,7 +182,31 @@ export function countItems(items: CartItem[]): number {
   return items.reduce((sum, item) => sum + item.qty, 0);
 }
 
-/** Сумма корзины в тенге. */
+/** Сумма корзины по ценам прайса, без учёта торга. */
 export function cartTotal(items: CartItem[]): number {
   return items.reduce((sum, item) => sum + item.price * item.qty, 0);
+}
+
+/**
+ * Действующая цена позиции: предложенная, если она есть (решение 18).
+ * Поля может не быть у корзины, сохранённой до появления торга,
+ * поэтому приводим к null, а не читаем напрямую.
+ */
+export function itemPrice(item: CartItem): number {
+  return item.offeredPrice ?? item.price;
+}
+
+/** Сумма корзины с учётом построчных предложений. */
+export function offeredLinesTotal(items: CartItem[]): number {
+  return items.reduce((sum, item) => sum + itemPrice(item) * item.qty, 0);
+}
+
+/**
+ * Итог, который покупатель предлагает заплатить (решение 18).
+ *
+ * Сумма за весь заказ перекрывает построчные предложения: если торгуются
+ * за партию целиком, одна цифра отменяет разбивку по позициям.
+ */
+export function effectiveCartTotal(items: CartItem[], offeredTotal: number | null): number {
+  return offeredTotal ?? offeredLinesTotal(items);
 }

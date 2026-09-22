@@ -14,9 +14,10 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { cartTotal, countItems, useCart } from '../lib/cart';
+import { cartTotal, countItems, effectiveCartTotal, itemPrice, useCart } from '../lib/cart';
 import { formatPrice, isValidPhone } from '../lib/format';
 import { EmptyState } from './EmptyState';
+import { OfferPrice } from './OfferPrice';
 import { Price } from './Price';
 import { QuantityControl } from './QuantityControl';
 
@@ -29,6 +30,9 @@ export function CartClient() {
   const setPhone = useCart((s) => s.setPhone);
   const remove = useCart((s) => s.remove);
   const clear = useCart((s) => s.clear);
+  const offeredTotal = useCart((s) => s.offeredTotal);
+  const setOfferedTotal = useCart((s) => s.setOfferedTotal);
+  const setOfferedPrice = useCart((s) => s.setOfferedPrice);
 
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -57,7 +61,11 @@ export function CartClient() {
     );
   }
 
-  const total = cartTotal(items);
+  // Две суммы: по прайсу и та, которую покупатель предлагает заплатить
+  // (решение 18). Совпадают — торга нет, показываем одно «Итого».
+  const listSum = cartTotal(items);
+  const total = effectiveCartTotal(items, offeredTotal);
+  const bargaining = total !== listSum;
   const count = countItems(items);
 
   /** Изменить количество, не обращаясь к каталогу: потолок хранится в строке. */
@@ -97,8 +105,14 @@ export function CartClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone,
-          // Цены не отправляем: сервер берёт их из таблицы по id.
-          items: items.map((item) => ({ id: item.id, qty: item.qty })),
+          // Прайсовые цены не отправляем: сервер берёт их из таблицы по id.
+          // Предложенные — отправляем, их неоткуда взять, кроме покупателя.
+          items: items.map((item) => ({
+            id: item.id,
+            qty: item.qty,
+            offeredPrice: item.offeredPrice,
+          })),
+          offeredTotal,
         }),
       });
 
@@ -163,10 +177,28 @@ export function CartClient() {
               />
 
               <span className="t-small text-ink-muted">
-                {formatPrice(item.price)} за штуку
+                {item.offeredPrice === null ? (
+                  `${formatPrice(item.price)} за штуку`
+                ) : (
+                  // Прайс не прячем: покупатель должен видеть, от чего торгуется.
+                  <>
+                    <s>{formatPrice(item.price)}</s> {formatPrice(item.offeredPrice)} за
+                    штуку
+                  </>
+                )}
               </span>
 
-              <Price value={item.price * item.qty} />
+              <Price value={itemPrice(item) * item.qty} />
+            </div>
+
+            {/* Торг по позиции (решение 18) */}
+            <div className="mt-3">
+              <OfferPrice
+                value={item.offeredPrice}
+                onChange={(next) => setOfferedPrice(item.id, next)}
+                label={`Ваша цена за шт: ${item.title}`}
+                linkLabel="Предложить свою цену"
+              />
             </div>
           </li>
         ))}
@@ -179,10 +211,30 @@ export function CartClient() {
           <span style={{ fontVariantNumeric: 'tabular-nums' }}>{count} шт</span>
         </p>
 
+        {bargaining && (
+          <p className="t-body text-ink-muted mt-2 mb-0 flex items-center justify-between">
+            <span>По прайсу</span>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {formatPrice(listSum)}
+            </span>
+          </p>
+        )}
+
         <p className="t-body mt-2 mb-0 flex items-center justify-between">
-          <span>Итого</span>
+          <span>{bargaining ? 'Ваше предложение' : 'Итого'}</span>
           <Price value={total} large />
         </p>
+
+        {/* Торг за весь заказ (решение 18) */}
+        <div className="mt-4">
+          <OfferPrice
+            value={offeredTotal}
+            onChange={setOfferedTotal}
+            label="Ваша сумма за весь заказ"
+            linkLabel="Предложить свою сумму за весь заказ"
+            hint="Сумма за заказ заменяет собой цены по позициям."
+          />
+        </div>
 
         <div className="mt-6">
           <label htmlFor="phone" className="t-caption text-ink-muted block">
@@ -237,6 +289,7 @@ export function CartClient() {
         <p className="t-small text-ink-muted mt-4 mb-0">
           Оплата и выдача — на месте, на Салеме. Заказ ничего не резервирует до
           подтверждения.
+          {bargaining && ' Предложенную цену продавец подтверждает в переписке.'}
         </p>
       </aside>
     </div>

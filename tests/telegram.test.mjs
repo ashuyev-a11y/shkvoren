@@ -156,3 +156,71 @@ test('пустой телефон не создаёт пустую строку'
   const text = buildNotification({ ...ORDER, phone: '   ' });
   assert.ok(!text.includes('Телефон покупателя'));
 });
+
+// --- Предложение цены (решение 18) -----------------------------------------
+
+/** Тот же заказ, но по первой позиции покупатель предложил свою цену. */
+const BARGAINED = {
+  ...ORDER,
+  lines: [
+    { ...ORDER.lines[0], offeredPrice: 15000, sum: 30000 },
+    { ...ORDER.lines[1], offeredPrice: null },
+  ],
+  total: 37500,
+  offeredTotal: null,
+};
+
+test('заказ без торга идёт без пометки', () => {
+  const text = buildNotification({ ...ORDER, offeredTotal: null });
+
+  assert.match(text, /^Новый заказ ШКВ-0007\n/);
+  assert.ok(!text.includes('предложил цену'));
+  assert.ok(text.includes('Итого: '));
+});
+
+test('построчное предложение поднимает пометку в начало сообщения', () => {
+  const text = buildNotification(BARGAINED);
+
+  // Пометка первой строкой: иначе продавец подтвердит заказ «по прайсу»,
+  // не заметив, что сумма другая.
+  assert.match(text, /^💬 Покупатель предложил цену\nНовый заказ ШКВ-0007\n/);
+  assert.ok(text.includes('(предложено: '));
+  assert.ok(text.includes('Итого по прайсу: '));
+  assert.ok(text.includes('Итого (предложение покупателя): '));
+});
+
+test('сумма за весь заказ тоже поднимает пометку', () => {
+  const text = buildNotification({
+    ...ORDER,
+    lines: ORDER.lines.map((line) => ({ ...line, offeredPrice: null })),
+    total: 25000,
+    offeredTotal: 25000,
+  });
+
+  assert.match(text, /^💬 Покупатель предложил цену\n/);
+  // Построчных пометок здесь нет: торговались за заказ целиком.
+  assert.ok(!text.includes('(предложено: '));
+  assert.ok(text.includes('Итого (предложение покупателя): '));
+});
+
+test('предложенные цены доходят до Telegram в теле запроса', async () => {
+  const { calls, result } = await withFetch(ok, () => notifyNewOrder(BARGAINED));
+
+  assert.equal(result, true);
+  const body = JSON.parse(calls[0].options.body);
+  assert.ok(body.text.startsWith('💬 Покупатель предложил цену'));
+  assert.equal(body.text, buildNotification(BARGAINED));
+});
+
+test('состав с торгом совпадает со строками сообщения WhatsApp', async () => {
+  const { buildMessage } = await import('../lib/whatsapp.ts');
+  const whatsapp = buildMessage(BARGAINED.lines, BARGAINED.phone);
+  const telegram = buildNotification(BARGAINED);
+
+  for (const line of BARGAINED.lines) {
+    const head = line.article ? `${line.article} — ${line.title}` : line.title;
+    const row = whatsapp.split('\n').find((r) => r.startsWith(head));
+    assert.ok(row, 'строка позиции есть в сообщении WhatsApp');
+    assert.ok(telegram.includes(row), `строка «${head}» совпадает в обоих каналах`);
+  }
+});

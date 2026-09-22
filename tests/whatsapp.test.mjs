@@ -99,3 +99,65 @@ test('отсутствие номера продавца — ошибка, а н
   assert.throws(() => buildWhatsappUrl([], ''), /NEXT_PUBLIC_WHATSAPP_NUMBER/);
   process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = saved;
 });
+
+// --- Предложение цены (решение 18) -----------------------------------------
+
+/** Те же позиции, но по первой покупатель предложил свою цену. */
+const OFFERED = [
+  { ...LINES[0], offeredPrice: 15000, sum: 30000 },
+  { ...LINES[1], offeredPrice: null },
+];
+
+test('построчное предложение помечается рядом со строкой', () => {
+  const text = buildMessage(OFFERED, '+7 701 111 22 33');
+
+  // Основная часть строки остаётся прайсовой: продавец видит, от чего торгуются.
+  assert.ok(
+    text.includes(
+      `4693501070 — Задний тормозной барабан, 2 шт x ${price(20000)} = ${price(40000)} ` +
+        `(предложено: ${price(15000)}/шт)`
+    )
+  );
+  // Позиция без торга остаётся ровно такой, какой была.
+  assert.ok(text.includes(`Тормозной щит, 1 шт x ${price(7500)} = ${price(7500)}\n`));
+  assert.ok(!text.includes('Тормозной щит, 1 шт x 7 500 ₸ = 7 500 ₸ (предложено'));
+});
+
+test('при построчном торге показаны обе суммы', () => {
+  const text = buildMessage(OFFERED, '');
+
+  assert.ok(text.includes(`Итого по прайсу: ${price(47500)}`));
+  assert.ok(text.includes(`Итого (предложение покупателя): ${price(37500)}`));
+  // Одинокого «Итого:» быть не должно — иначе непонятно, какая это сумма.
+  assert.ok(!/\nИтого: /.test(text));
+});
+
+test('сумма за весь заказ заменяет собой построчный расчёт', () => {
+  const text = buildMessage(OFFERED, '', 25000);
+
+  assert.ok(text.includes(`Итого по прайсу: ${price(47500)}`));
+  assert.ok(text.includes(`Итого (предложение покупателя): ${price(25000)}`));
+  // Построчная пометка при этом остаётся: видно, с чего покупатель начал.
+  assert.ok(text.includes(`(предложено: ${price(15000)}/шт)`));
+  assert.ok(!text.includes(price(37500)));
+});
+
+test('без торга шаблон решения 12 не меняется ни на символ', () => {
+  // В LINES поля offeredPrice нет вовсе — так выглядят заказы, собранные
+  // до появления торга. Они обязаны давать прежний текст.
+  const text = buildMessage(LINES, '');
+  assert.ok(text.endsWith(`Итого: ${price(47500)}`));
+  assert.ok(!text.includes('предложено'));
+  assert.ok(!text.includes('по прайсу'));
+
+  // Явный null даёт ровно тот же результат, что и отсутствующее поле.
+  const explicit = LINES.map((line) => ({ ...line, offeredPrice: null }));
+  assert.equal(buildMessage(explicit, ''), text);
+});
+
+test('ссылка переносит предложенную сумму без потерь', () => {
+  process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = '77010000000';
+  const url = buildWhatsappUrl(OFFERED, '+7 701 111 22 33', 25000);
+  const decoded = decodeURIComponent(url.slice(url.indexOf('?text=') + 6));
+  assert.equal(decoded, buildMessage(OFFERED, '+7 701 111 22 33', 25000));
+});

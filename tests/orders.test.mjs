@@ -10,8 +10,11 @@ import assert from 'node:assert/strict';
 import {
   OrderError,
   buildLines,
+  buildOrder,
   buildOrderNo,
   buildRow,
+  effectiveTotal,
+  listTotal,
   orderTotal,
   uralskTimestamp,
 } from '../lib/orders.ts';
@@ -123,7 +126,7 @@ test('пустая корзина отклоняется', () => {
 
 // --- Строка листа ----------------------------------------------------------
 
-test('строка листа содержит восемь колонок в порядке A..H', () => {
+test('строка листа содержит десять колонок в порядке A..J', () => {
   const lines = buildLines([{ id: 1, qty: 2 }, { id: 2, qty: 1 }], PARTS);
   const row = buildRow({
     orderNo: 'ШКВ-0001',
@@ -131,10 +134,12 @@ test('строка листа содержит восемь колонок в п
     phone: '+7 701 111 22 33',
     lines,
     total: orderTotal(lines),
+    offeredTotal: null,
     status: 'новый',
   });
 
-  assert.equal(row.length, 8);
+  // Колонки I и J добавлены вместе с торгом (решение 18).
+  assert.equal(row.length, 10);
   assert.equal(row[0], 'ШКВ-0001');
   assert.equal(row[1], '2026-09-20T14:31:05+05:00');
   assert.equal(row[2], '+7 701 111 22 33');
@@ -142,6 +147,9 @@ test('строка листа содержит восемь колонок в п
   assert.equal(row[4], '47500');
   assert.equal(row[5], '1x2; 2x1');
   assert.equal(row[7], 'новый');
+  // Торга не было: колонка предложения пуста, итог по прайсу равен общему.
+  assert.equal(row[8], '');
+  assert.equal(row[9], '47500');
 });
 
 test('читаемый состав содержит название каждой позиции', () => {
@@ -152,6 +160,7 @@ test('читаемый состав содержит название каждо
     phone: '+7 701 111 22 33',
     lines,
     total: orderTotal(lines),
+    offeredTotal: null,
     status: 'новый',
   });
 
@@ -169,8 +178,93 @@ test('итог в строке листа — число без разделит
     phone: '',
     lines,
     total: orderTotal(lines),
+    offeredTotal: null,
     status: 'новый',
   });
   assert.equal(row[4], '40000');
   assert.ok(Number.isFinite(Number(row[4])));
+});
+
+// --- Предложение цены (решение 18) -----------------------------------------
+
+test('построчное предложение участвует в расчёте строки и итога', () => {
+  // Прайс 20 000 × 2 = 40 000. Покупатель предлагает 15 000 за штуку.
+  const lines = buildLines([{ id: 1, qty: 2, offeredPrice: 15000 }], PARTS);
+
+  assert.equal(lines[0].price, 20000, 'прайсовая цена сохраняется как есть');
+  assert.equal(lines[0].offeredPrice, 15000);
+  assert.equal(lines[0].sum, 30000, 'сумма строки считается по предложенной цене');
+
+  assert.equal(orderTotal(lines), 30000);
+  assert.equal(listTotal(lines), 40000, 'итог по прайсу остаётся доступен');
+});
+
+test('позиция без предложения считается по прайсу', () => {
+  const lines = buildLines([{ id: 1, qty: 2 }, { id: 2, qty: 1, offeredPrice: 5000 }], PARTS);
+
+  assert.equal(lines[0].offeredPrice, null);
+  assert.equal(lines[0].sum, 40000);
+  assert.equal(lines[1].sum, 5000);
+  assert.equal(orderTotal(lines), 45000);
+  assert.equal(listTotal(lines), 47500);
+});
+
+test('предложение ниже себестоимости допускается', () => {
+  // Отсечки по проценту нет намеренно: цена в таблице и так себестоимость
+  // (решение 0), поэтому предложение ниже неё — осознанный торг.
+  const lines = buildLines([{ id: 1, qty: 1, offeredPrice: 1 }], PARTS);
+  assert.equal(lines[0].sum, 1);
+});
+
+test('нецелое и неположительное предложение отклоняются', () => {
+  assert.throws(() => buildLines([{ id: 1, qty: 1, offeredPrice: 0 }], PARTS), OrderError);
+  assert.throws(() => buildLines([{ id: 1, qty: 1, offeredPrice: -5 }], PARTS), OrderError);
+  assert.throws(() => buildLines([{ id: 1, qty: 1, offeredPrice: 10.5 }], PARTS), OrderError);
+});
+
+test('сумма за весь заказ побеждает построчные предложения', () => {
+  const lines = buildLines([{ id: 1, qty: 2, offeredPrice: 15000 }, { id: 2, qty: 1 }], PARTS);
+
+  // Построчно вышло бы 30 000 + 7 500 = 37 500, но покупатель торгуется
+  // за партию целиком — одна цифра отменяет разбивку.
+  assert.equal(orderTotal(lines), 37500);
+  assert.equal(effectiveTotal(lines, 25000), 25000);
+  assert.equal(effectiveTotal(lines, null), 37500, 'без суммы за заказ считаем по строкам');
+});
+
+test('при сумме за заказ построчные предложения не теряются', () => {
+  const lines = buildLines([{ id: 1, qty: 2, offeredPrice: 15000 }, { id: 2, qty: 1 }], PARTS);
+  const row = buildRow({
+    orderNo: 'ШКВ-0003',
+    createdAt: uralskTimestamp(),
+    phone: '+7 701 111 22 33',
+    lines,
+    total: effectiveTotal(lines, 25000),
+    offeredTotal: 25000,
+    status: 'новый',
+  });
+
+  // Колонка E — сумма, которую покупатель предлагает заплатить.
+  assert.equal(row[4], '25000');
+  // Колонка I — предложение за заказ, J — итог по прайсу.
+  assert.equal(row[8], '25000');
+  assert.equal(row[9], '47500');
+  // Построчное предложение видно и в машинном, и в читаемом составе.
+  assert.equal(row[5], '1x2@15000; 2x1');
+  assert.match(row[6], /\(предложено: /);
+});
+
+test('buildOrder проверяет сумму за заказ и считает итог', () => {
+  const lines = buildLines([{ id: 1, qty: 1 }], PARTS);
+
+  const bargained = buildOrder(lines, '+7 701 111 22 33', 1, 12000);
+  assert.equal(bargained.total, 12000);
+  assert.equal(bargained.offeredTotal, 12000);
+
+  const plain = buildOrder(lines, '+7 701 111 22 33', 1);
+  assert.equal(plain.total, 20000);
+  assert.equal(plain.offeredTotal, null, 'по умолчанию торга нет');
+
+  assert.throws(() => buildOrder(lines, '', 1, 0), OrderError);
+  assert.throws(() => buildOrder(lines, '', 1, 10.5), OrderError);
 });

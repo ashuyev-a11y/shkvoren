@@ -31,7 +31,18 @@ const ATTEMPTS = 2;
  */
 function formatLine(line: OrderLine): string {
   const head = line.article ? `${line.article} — ${line.title}` : line.title;
-  return `${head}, ${line.qty} шт x ${formatPrice(line.price)} = ${formatPrice(line.sum)}`;
+  const row = `${head}, ${line.qty} шт x ${formatPrice(line.price)} = ${formatPrice(line.price * line.qty)}`;
+  // Поля может не быть вовсе у строк, собранных не через buildLines,
+  // поэтому приводим к null, а не сравниваем строго.
+  const offered = line.offeredPrice ?? null;
+  if (offered === null) return row;
+  return `${row} (предложено: ${formatPrice(offered)}/шт)`;
+}
+
+/** Есть ли в заказе хоть одно предложение цены (решение 18). */
+function hasOffer(order: Order): boolean {
+  if ((order.offeredTotal ?? null) !== null) return true;
+  return order.lines.some((line) => (line.offeredPrice ?? null) !== null);
 }
 
 /**
@@ -41,11 +52,26 @@ function formatLine(line: OrderLine): string {
  * продавец находит строку в листе «Заказы».
  */
 export function buildNotification(order: Order): string {
-  const rows = [`Новый заказ ${order.orderNo}`];
+  const rows: string[] = [];
+
+  /*
+   * Пометка о торге идёт первой строкой (решение 18): без неё продавец
+   * рискует подтвердить заказ «по прайсу», не заметив, что сумма другая.
+   */
+  if (hasOffer(order)) rows.push('💬 Покупатель предложил цену');
+
+  rows.push(`Новый заказ ${order.orderNo}`);
 
   for (const line of order.lines) rows.push(formatLine(line));
 
-  rows.push(`Итого: ${formatPrice(order.total)}`);
+  const list = order.lines.reduce((sum, line) => sum + line.price * line.qty, 0);
+  // Итог по прайсу и действующий совпадают, только если торга не было.
+  if (order.total === list) {
+    rows.push(`Итого: ${formatPrice(list)}`);
+  } else {
+    rows.push(`Итого по прайсу: ${formatPrice(list)}`);
+    rows.push(`Итого (предложение покупателя): ${formatPrice(order.total)}`);
+  }
 
   // Телефон обязателен при оформлении (решение 2), но заказ может прийти
   // и из админки в будущем — пустую строку в сообщении не оставляем.

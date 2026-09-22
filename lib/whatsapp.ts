@@ -30,7 +30,14 @@ const GREETING_ORDER = 'Здравствуйте! Хочу заказать по
  */
 function formatLine(line: OrderLine): string {
   const head = line.article ? `${line.article} — ${line.title}` : line.title;
-  return `${head}, ${line.qty} шт x ${formatPrice(line.price)} = ${formatPrice(line.sum)}`;
+  // В основной части строки всегда цена по прайсу: продавец должен видеть,
+  // от чего торгуются. Предложение идёт пометкой рядом (решение 18).
+  const row = `${head}, ${line.qty} шт x ${formatPrice(line.price)} = ${formatPrice(line.price * line.qty)}`;
+  // Сравнение нестрогое: у строк, собранных не через buildLines, поля может
+  // не быть вовсе, и строгая проверка напечатала бы «предложено: undefined».
+  const offered = line.offeredPrice ?? null;
+  if (offered === null) return row;
+  return `${row} (предложено: ${formatPrice(offered)}/шт)`;
 }
 
 /**
@@ -39,7 +46,11 @@ function formatLine(line: OrderLine): string {
  * @param lines позиции заказа; пустой массив — обращение без заказа
  * @param phone телефон покупателя; строка добавляется только если он заполнен
  */
-export function buildMessage(lines: OrderLine[], phone: string): string {
+export function buildMessage(
+  lines: OrderLine[],
+  phone: string,
+  offeredTotal: number | null = null
+): string {
   const rows: string[] = [];
 
   if (lines.length === 0) {
@@ -47,8 +58,20 @@ export function buildMessage(lines: OrderLine[], phone: string): string {
   } else {
     rows.push(GREETING_ORDER);
     for (const line of lines) rows.push(formatLine(line));
-    const total = lines.reduce((sum, line) => sum + line.sum, 0);
-    rows.push(`Итого: ${formatPrice(total)}`);
+
+    const list = lines.reduce((sum, line) => sum + line.price * line.qty, 0);
+    const offered = offeredTotal ?? lines.reduce((sum, line) => sum + line.sum, 0);
+
+
+    if (offered === list) {
+      // Торга нет — шаблон решения 12 воспроизводится дословно.
+      rows.push(`Итого: ${formatPrice(list)}`);
+    } else {
+      // Обе суммы рядом: одна «Итого» без пояснения оставила бы продавца
+      // гадать, прайс это или предложение (решение 18).
+      rows.push(`Итого по прайсу: ${formatPrice(list)}`);
+      rows.push(`Итого (предложение покупателя): ${formatPrice(offered)}`);
+    }
   }
 
   // Решение 12: строка с телефоном добавляется только при заполненном поле.
@@ -66,7 +89,11 @@ export function buildMessage(lines: OrderLine[], phone: string): string {
  * Отсутствие переменной — отказ: молча открыть пустой WhatsApp хуже,
  * чем показать ошибку.
  */
-export function buildWhatsappUrl(lines: OrderLine[], phone: string): string {
+export function buildWhatsappUrl(
+  lines: OrderLine[],
+  phone: string,
+  offeredTotal: number | null = null
+): string {
   const number = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '').replace(/\D/g, '');
   if (number === '') {
     throw new Error(
@@ -74,5 +101,6 @@ export function buildWhatsappUrl(lines: OrderLine[], phone: string): string {
     );
   }
 
-  return `${WHATSAPP_BASE}/${number}?text=${encodeURIComponent(buildMessage(lines, phone))}`;
+  const text = buildMessage(lines, phone, offeredTotal);
+  return `${WHATSAPP_BASE}/${number}?text=${encodeURIComponent(text)}`;
 }

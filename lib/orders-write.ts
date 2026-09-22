@@ -23,10 +23,14 @@ import type { Order, OrderLine } from '../types/order.ts';
  * при неудаче быть не должно, иначе покупатель уйдёт с заказом,
  * которого нет в таблице.
  */
-export async function createOrder(lines: OrderLine[], phone: string): Promise<Order> {
+export async function createOrder(
+  lines: OrderLine[],
+  phone: string,
+  offeredTotal: number | null = null
+): Promise<Order> {
   const sheet = ordersSheetName();
   const rows = await countRows(sheet);
-  const order = buildOrder(lines, phone, rows);
+  const order = buildOrder(lines, phone, rows, offeredTotal);
 
   await appendRow(sheet, buildRow(order));
   return order;

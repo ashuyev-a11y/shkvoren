@@ -14,7 +14,6 @@ import assert from 'node:assert/strict';
 import { readSheet } from '../scripts/xlsx-read.mjs';
 import {
   COLUMN,
-  EXPECTED,
   classifyArticle,
   collectCategories,
   detectBrands,
