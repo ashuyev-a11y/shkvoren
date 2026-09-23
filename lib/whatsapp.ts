@@ -45,11 +45,13 @@ function formatLine(line: OrderLine): string {
  *
  * @param lines позиции заказа; пустой массив — обращение без заказа
  * @param phone телефон покупателя; строка добавляется только если он заполнен
+ * @param comment комментарий к заказу (решение 18.1); пустой строку не добавляет
  */
 export function buildMessage(
   lines: OrderLine[],
   phone: string,
-  offeredTotal: number | null = null
+  offeredTotal: number | null = null,
+  comment: string = ''
 ): string {
   const rows: string[] = [];
 
@@ -79,6 +81,11 @@ export function buildMessage(
     rows.push(`Мой телефон: ${phone.trim()}`);
   }
 
+  // Решение 18.1: по той же схеме, что телефон, — только при заполненном поле.
+  // Переносы схлопываются: комментарий в сообщении занимает одну строку.
+  const note = comment.replace(/\s+/g, ' ').trim();
+  if (note !== '') rows.push(`Комментарий: ${note}`);
+
   return rows.join('\n');
 }
 
@@ -92,7 +99,8 @@ export function buildMessage(
 export function buildWhatsappUrl(
   lines: OrderLine[],
   phone: string,
-  offeredTotal: number | null = null
+  offeredTotal: number | null = null,
+  comment: string = ''
 ): string {
   const number = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '').replace(/\D/g, '');
   if (number === '') {
@@ -101,6 +109,6 @@ export function buildWhatsappUrl(
     );
   }
 
-  const text = buildMessage(lines, phone, offeredTotal);
+  const text = buildMessage(lines, phone, offeredTotal, comment);
   return `${WHATSAPP_BASE}/${number}?text=${encodeURIComponent(text)}`;
 }

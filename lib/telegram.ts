@@ -79,6 +79,12 @@ export function buildNotification(order: Order): string {
     rows.push(`Телефон покупателя: ${order.phone.trim()}`);
   }
 
+  // Комментарий (решение 18.1). Уведомление собирается своей функцией, а не
+  // из текста WhatsApp, поэтому строка добавляется здесь явно — в том же
+  // виде, что и в WhatsApp. Пустой комментарий строки не даёт.
+  const note = (order.comment ?? '').replace(/\s+/g, ' ').trim();
+  if (note !== '') rows.push(`Комментарий: ${note}`);
+
   return rows.join('\n');
 }
 

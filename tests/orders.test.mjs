@@ -8,8 +8,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  COMMENT_MAX,
   OrderError,
   buildLines,
+  normalizeComment,
   buildOrder,
   buildOrderNo,
   buildRow,
@@ -126,7 +128,7 @@ test('пустая корзина отклоняется', () => {
 
 // --- Строка листа ----------------------------------------------------------
 
-test('строка листа содержит десять колонок в порядке A..J', () => {
+test('строка листа содержит одиннадцать колонок в порядке A..K', () => {
   const lines = buildLines([{ id: 1, qty: 2 }, { id: 2, qty: 1 }], PARTS);
   const row = buildRow({
     orderNo: 'ШКВ-0001',
@@ -138,8 +140,8 @@ test('строка листа содержит десять колонок в п
     status: 'новый',
   });
 
-  // Колонки I и J добавлены вместе с торгом (решение 18).
-  assert.equal(row.length, 10);
+  // Колонки I и J добавлены вместе с торгом (решение 18), K — комментарий (18.1).
+  assert.equal(row.length, 11);
   assert.equal(row[0], 'ШКВ-0001');
   assert.equal(row[1], '2026-09-20T14:31:05+05:00');
   assert.equal(row[2], '+7 701 111 22 33');
@@ -150,6 +152,8 @@ test('строка листа содержит десять колонок в п
   // Торга не было: колонка предложения пуста, итог по прайсу равен общему.
   assert.equal(row[8], '');
   assert.equal(row[9], '47500');
+  // Комментария не было — колонка K пуста.
+  assert.equal(row[10], '');
 });
 
 test('читаемый состав содержит название каждой позиции', () => {
@@ -267,4 +271,27 @@ test('buildOrder проверяет сумму за заказ и считает
 
   assert.throws(() => buildOrder(lines, '', 1, 0), OrderError);
   assert.throws(() => buildOrder(lines, '', 1, 10.5), OrderError);
+});
+
+// --- Комментарий к заказу (решение 18.1) ------------------------------------
+
+test('пустой комментарий не пишется в таблицу', () => {
+  const lines = buildLines([{ id: 1, qty: 1 }], PARTS);
+  for (const empty of [null, undefined, '', '   ', '\n\t']) {
+    const order = buildOrder(lines, '+7 701 111 22 33', 1, null, empty);
+    assert.equal(order.comment, '');
+    assert.equal(buildRow(order)[10], '', 'колонка K пуста');
+  }
+});
+
+test('заполненный комментарий пишется в колонку K', () => {
+  const lines = buildLines([{ id: 1, qty: 1 }], PARTS);
+  const order = buildOrder(lines, '+7 701 111 22 33', 1, null, '  Заберу\nв субботу  ');
+  // Переносы схлопнуты, крайние пробелы сняты: в ячейке одна строка.
+  assert.equal(order.comment, 'Заберу в субботу');
+  assert.equal(buildRow(order)[10], 'Заберу в субботу');
+});
+
+test('длинный комментарий обрезается, а не отклоняет заказ', () => {
+  assert.equal(normalizeComment('я'.repeat(COMMENT_MAX + 50)).length, COMMENT_MAX);
 });

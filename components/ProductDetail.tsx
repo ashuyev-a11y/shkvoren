@@ -8,10 +8,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { useCart } from '../lib/cart';
 import { useToast } from '../lib/toast';
 import { buildWhatsappUrl } from '../lib/whatsapp';
 import { ArticleChip } from './ArticleChip';
+import { OfferPrice } from './OfferPrice';
 import { Price } from './Price';
 import { QuantityControl } from './QuantityControl';
 import { StockBadge } from './StockBadge';
@@ -20,13 +22,36 @@ import type { PublicPart } from '../types/part';
 export function ProductDetail({ part }: { part: PublicPart }) {
   const qty = useCart((s) => s.items.find((i) => i.id === part.id)?.qty ?? 0);
   const setQty = useCart((s) => s.setQty);
+  const setOfferedPrice = useCart((s) => s.setOfferedPrice);
+  const cartOffer = useCart(
+    (s) => s.items.find((i) => i.id === part.id)?.offeredPrice ?? null
+  );
   const phone = useCart((s) => s.phone);
   const show = useToast((s) => s.show);
 
   const inCart = qty > 0;
 
+  /*
+   * Предложение цены с карточки (решение 18.1). Пока позиции нет в корзине,
+   * хранить его негде, кроме самой карточки: строка корзины появляется
+   * только при добавлении. Поэтому до добавления цена живёт здесь и уходит
+   * в корзину вместе с позицией, а после — правится прямо в корзине.
+   */
+  const [pendingOffer, setPendingOffer] = useState<number | null>(null);
+  const offer = inCart ? cartOffer : pendingOffer;
+
+  function changeOffer(next: number | null) {
+    if (inCart) setOfferedPrice(part.id, next);
+    else setPendingOffer(next);
+  }
+
+  /** Изменить количество; при первом добавлении забрать предложение с карточки. */
+  function changeQty(next: number) {
+    setQty(part, next, inCart ? undefined : pendingOffer);
+  }
+
   function add() {
-    setQty(part, Math.max(qty, 1));
+    changeQty(Math.max(qty, 1));
     show('Добавлено в заказ');
   }
 
@@ -89,7 +114,7 @@ export function ProductDetail({ part }: { part: PublicPart }) {
           <QuantityControl
             value={qty}
             max={part.qty}
-            onChange={(next) => setQty(part, next)}
+            onChange={changeQty}
             title={part.title}
           />
 
@@ -113,6 +138,23 @@ export function ProductDetail({ part }: { part: PublicPart }) {
             </Link>
           )}
         </div>
+
+        {/* Торг по позиции — тот же компонент, что в корзине (решение 18.1) */}
+        {part.qty > 0 && (
+          <div className="mt-4">
+            <OfferPrice
+              value={offer}
+              onChange={changeOffer}
+              label="Ваша цена за шт"
+              linkLabel="Предложить свою цену"
+              hint={
+                inCart
+                  ? 'Цена сохранена в заказе. Продавец подтвердит её в переписке.'
+                  : 'Цена уйдёт в заказ вместе с позицией.'
+              }
+            />
+          </div>
+        )}
 
         <button
           type="button"

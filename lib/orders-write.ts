@@ -26,11 +26,12 @@ import type { Order, OrderLine } from '../types/order.ts';
 export async function createOrder(
   lines: OrderLine[],
   phone: string,
-  offeredTotal: number | null = null
+  offeredTotal: number | null = null,
+  comment: string | null = null
 ): Promise<Order> {
   const sheet = ordersSheetName();
   const rows = await countRows(sheet);
-  const order = buildOrder(lines, phone, rows, offeredTotal);
+  const order = buildOrder(lines, phone, rows, offeredTotal, comment);
 
   await appendRow(sheet, buildRow(order));
   return order;

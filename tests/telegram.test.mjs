@@ -224,3 +224,25 @@ test('состав с торгом совпадает со строками со
     assert.ok(telegram.includes(row), `строка «${head}» совпадает в обоих каналах`);
   }
 });
+
+// --- Комментарий к заказу (решение 18.1) ------------------------------------
+
+test('пустой комментарий не попадает в уведомление', () => {
+  assert.equal(buildNotification({ ...ORDER, comment: '' }), buildNotification(ORDER));
+  assert.ok(!buildNotification({ ...ORDER, comment: '   ' }).includes('Комментарий'));
+});
+
+test('комментарий в Telegram совпадает со строкой WhatsApp', async () => {
+  // Уведомление собирается не из текста WhatsApp, а своей функцией, —
+  // поэтому проверяем, что строка комментария в обоих каналах одинакова.
+  const { buildMessage } = await import('../lib/whatsapp.ts');
+  const order = { ...ORDER, comment: 'Заберу в субботу' };
+  const telegram = buildNotification(order);
+  const whatsapp = buildMessage(order.lines, order.phone, null, order.comment);
+
+  assert.ok(telegram.endsWith('\nКомментарий: Заберу в субботу'));
+  assert.ok(whatsapp.endsWith('\nКомментарий: Заберу в субботу'));
+
+  const { calls } = await withFetch(ok, () => notifyNewOrder(order));
+  assert.ok(JSON.parse(calls[0].options.body).text.includes('Комментарий: Заберу в субботу'));
+});

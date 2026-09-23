@@ -20,6 +20,21 @@ const ORDER_PREFIX = 'ШКВ';
 /** Разрядность номера: ШКВ-0001. */
 const ORDER_DIGITS = 4;
 
+/**
+ * Предел длины комментария к заказу (решение 18.1: 200–300 символов).
+ * Строже не валидируем: лишнее обрезается, заказ не отклоняется.
+ */
+export const COMMENT_MAX = 300;
+
+/**
+ * Привести комментарий к виду для записи: без крайних пробелов, переносы
+ * строк схлопнуты в пробел (в сообщении и в ячейке комментарий — одна
+ * строка), длина не больше COMMENT_MAX. Пустой результат — комментария нет.
+ */
+export function normalizeComment(input: string | null | undefined): string {
+  return (input ?? '').replace(/\s+/g, ' ').trim().slice(0, COMMENT_MAX);
+}
+
 /** Ошибка, которую можно показать покупателю: текст написан для него. */
 export class OrderError extends Error {
   constructor(message: string) {
@@ -163,7 +178,9 @@ function readableComposition(lines: OrderLine[]): string {
 }
 
 /**
- * Строка листа «Заказы», колонки A..J (docs/data-model.md §8).
+ * Строка листа «Заказы», колонки A..K (docs/data-model.md §8).
+ *
+ * Колонка K — комментарий покупателя (решение 18.1), пусто без комментария.
  *
  * Колонки I и J появились вместе с торгом (решение 18): в E попадает
  * действующий итог — сумма, которую покупатель предлагает заплатить, —
@@ -181,6 +198,7 @@ export function buildRow(order: Order): string[] {
     order.status,
     order.offeredTotal === null ? '' : String(order.offeredTotal),
     String(listTotal(order.lines)),
+    normalizeComment(order.comment),
   ];
 }
 
@@ -193,7 +211,8 @@ export function buildOrder(
   lines: OrderLine[],
   phone: string,
   rows: number,
-  offeredTotal: number | null = null
+  offeredTotal: number | null = null,
+  comment: string | null = null
 ): Order {
   if (offeredTotal !== null && (!Number.isInteger(offeredTotal) || offeredTotal < 1)) {
     throw new OrderError('Предложенная сумма за заказ должна быть целым числом от 1.');
@@ -206,6 +225,7 @@ export function buildOrder(
     lines,
     total: effectiveTotal(lines, offeredTotal),
     offeredTotal,
+    comment: normalizeComment(comment),
     status: 'новый',
   };
 }

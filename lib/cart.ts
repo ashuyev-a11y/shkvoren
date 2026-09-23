@@ -13,6 +13,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { COMMENT_MAX } from './orders.ts';
 import type { ArticleKind, PublicPart } from '../types/part';
 
 /** Позиция корзины: количество плюс снимок данных для показа. */
@@ -43,6 +44,8 @@ type CartState = {
    * null — торга за заказ нет, итог считается по строкам.
    */
   offeredTotal: number | null;
+  /** Комментарий к заказу (решение 18.1). Пустая строка — комментария нет. */
+  comment: string;
   /**
    * Прочитано ли сохранённое состояние из localStorage.
    * До этого момента счётчики не показываются: серверная разметка
@@ -50,7 +53,12 @@ type CartState = {
    */
   hydrated: boolean;
 
-  setQty: (part: PublicPart, qty: number) => void;
+  /**
+   * Задать количество позиции. Третий аргумент — предложенная цена
+   * (решение 18.1): карточка товара передаёт её при добавлении. undefined —
+   * не трогать уже сделанное предложение, null — снять его.
+   */
+  setQty: (part: PublicPart, qty: number, offeredPrice?: number | null) => void;
   remove: (id: number) => void;
   clear: () => void;
   setPhone: (phone: string) => void;
@@ -58,7 +66,13 @@ type CartState = {
   setOfferedPrice: (id: number, price: number | null) => void;
   /** Задать или снять (null) предложение за весь заказ. */
   setOfferedTotal: (total: number | null) => void;
+  /** Задать комментарий к заказу. Длина обрезается до COMMENT_MAX. */
+  setComment: (comment: string) => void;
 };
+
+// Предел длины комментария один на клиент и сервер: объявлен в lib/orders.ts
+// (решение 18.1), здесь переэкспортируется для поля ввода.
+export { COMMENT_MAX };
 
 /**
  * Привести предложение покупателя к виду, пригодному для отправки.
@@ -86,13 +100,14 @@ export const useCart = create<CartState>()(
       items: [],
       phone: '',
       offeredTotal: null,
+      comment: '',
       hydrated: false,
 
       /**
        * Задать количество позиции.
        * Ноль удаляет строку — отдельная кнопка «убрать» степперу не нужна.
        */
-      setQty: (part, qty) =>
+      setQty: (part, qty, offeredPrice) =>
         set((state) => {
           const next = clampQty(qty, part.qty);
           if (next === 0) {
@@ -109,7 +124,16 @@ export const useCart = create<CartState>()(
                     // Предложение покупателя сохраняется: оно принадлежит ему,
                     // а не таблице, и сбрасывать его при изменении количества
                     // значило бы молча отменить торг.
-                    { ...item, qty: next, price: part.price, stock: part.qty }
+                    {
+                      ...item,
+                      qty: next,
+                      price: part.price,
+                      stock: part.qty,
+                      // Явно переданное предложение заменяет прежнее.
+                      ...(offeredPrice === undefined
+                        ? {}
+                        : { offeredPrice: normalizeOffer(offeredPrice) }),
+                    }
                   : item
               ),
             };
@@ -126,8 +150,8 @@ export const useCart = create<CartState>()(
                 price: part.price,
                 qty: next,
                 stock: part.qty,
-                // Новая позиция всегда по прайсу: торг начинает покупатель.
-                offeredPrice: null,
+                // По прайсу, если покупатель не предложил цену на карточке.
+                offeredPrice: normalizeOffer(offeredPrice ?? null),
               },
             ],
           };
@@ -136,7 +160,7 @@ export const useCart = create<CartState>()(
       remove: (id) => set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
       // Предложение за заказ снимается вместе с корзиной: сумма за «весь
       // заказ» без самого заказа смысла не имеет.
-      clear: () => set({ items: [], offeredTotal: null }),
+      clear: () => set({ items: [], offeredTotal: null, comment: '' }),
       setPhone: (phone) => set({ phone }),
 
       setOfferedPrice: (id, price) =>
@@ -147,6 +171,8 @@ export const useCart = create<CartState>()(
         })),
 
       setOfferedTotal: (total) => set({ offeredTotal: normalizeOffer(total) }),
+
+      setComment: (comment) => set({ comment: comment.slice(0, COMMENT_MAX) }),
     }),
     {
       name: 'shkvoren-cart',
@@ -156,6 +182,7 @@ export const useCart = create<CartState>()(
         items: state.items,
         phone: state.phone,
         offeredTotal: state.offeredTotal,
+        comment: state.comment,
       }),
       onRehydrateStorage: () => (state) => {
         // Флаг ставится мутацией переданного состояния, а не useCart.setState:

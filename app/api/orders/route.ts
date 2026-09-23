@@ -49,6 +49,11 @@ const Body = z.object({
     .int('Предложенная сумма должна быть целым числом.')
     .positive('Предложенная сумма должна быть больше нуля.')
     .nullish(),
+  /*
+   * Комментарий к заказу (решение 18.1). Строгой валидации нет: длинный
+   * текст не отклоняет заказ, а обрезается до COMMENT_MAX в normalizeComment.
+   */
+  comment: z.string().nullish(),
 });
 
 export async function POST(request: Request) {
@@ -71,7 +76,12 @@ export async function POST(request: Request) {
     const lines = buildLines(parsed.data.items, read.parts);
 
     // Порядок важен: запись — раньше ссылки.
-    const order = await createOrder(lines, parsed.data.phone, parsed.data.offeredTotal ?? null);
+    const order = await createOrder(
+      lines,
+      parsed.data.phone,
+      parsed.data.offeredTotal ?? null,
+      parsed.data.comment ?? null
+    );
 
     /*
      * Уведомление продавца (решение 17). after() выполняет работу после
@@ -87,7 +97,13 @@ export async function POST(request: Request) {
     return NextResponse.json({
       orderNo: order.orderNo,
       total: order.total,
-      whatsappUrl: buildWhatsappUrl(order.lines, order.phone, order.offeredTotal),
+      // Комментарий берётся из заказа — уже нормализованный, тот же, что в листе.
+      whatsappUrl: buildWhatsappUrl(
+        order.lines,
+        order.phone,
+        order.offeredTotal,
+        order.comment ?? ''
+      ),
     });
   } catch (error) {
     // Ошибка состава заказа — вина данных запроса, текст можно показать.

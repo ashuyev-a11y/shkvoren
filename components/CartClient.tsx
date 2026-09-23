@@ -14,7 +14,14 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { cartTotal, countItems, effectiveCartTotal, itemPrice, useCart } from '../lib/cart';
+import {
+  COMMENT_MAX,
+  cartTotal,
+  countItems,
+  effectiveCartTotal,
+  itemPrice,
+  useCart,
+} from '../lib/cart';
 import { formatPrice, isValidPhone } from '../lib/format';
 import { EmptyState } from './EmptyState';
 import { OfferPrice } from './OfferPrice';
@@ -33,6 +40,8 @@ export function CartClient() {
   const offeredTotal = useCart((s) => s.offeredTotal);
   const setOfferedTotal = useCart((s) => s.setOfferedTotal);
   const setOfferedPrice = useCart((s) => s.setOfferedPrice);
+  const comment = useCart((s) => s.comment);
+  const setComment = useCart((s) => s.setComment);
 
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -113,6 +122,8 @@ export function CartClient() {
             offeredPrice: item.offeredPrice,
           })),
           offeredTotal,
+          // Комментарий необязателен (решение 18.1): пустой сервер не сохранит.
+          comment,
         }),
       });
 
@@ -258,6 +269,25 @@ export function CartClient() {
               {phoneError}
             </p>
           )}
+        </div>
+
+        {/* Комментарий к заказу (решение 18.1): необязателен, без валидации */}
+        <div className="mt-4">
+          <label htmlFor="order-comment" className="t-caption text-ink-muted block">
+            Комментарий к заказу
+          </label>
+          <textarea
+            id="order-comment"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            maxLength={COMMENT_MAX}
+            rows={3}
+            aria-describedby="order-comment-hint"
+            className="t-body bg-surface-raised border-control-border mt-1 w-full rounded-md border px-3 py-2"
+          />
+          <p id="order-comment-hint" className="t-small text-ink-muted mt-1 mb-0">
+            Необязательно. До {COMMENT_MAX} символов, сейчас {comment.length}.
+          </p>
         </div>
 
         <button

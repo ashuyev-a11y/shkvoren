@@ -161,3 +161,24 @@ test('ссылка переносит предложенную сумму без
   const decoded = decodeURIComponent(url.slice(url.indexOf('?text=') + 6));
   assert.equal(decoded, buildMessage(OFFERED, '+7 701 111 22 33', 25000));
 });
+
+// --- Комментарий к заказу (решение 18.1) ------------------------------------
+
+test('пустой комментарий не добавляет строку', () => {
+  const base = buildMessage(LINES, '+7 701 111 22 33');
+  assert.equal(buildMessage(LINES, '+7 701 111 22 33', null, ''), base);
+  assert.equal(buildMessage(LINES, '+7 701 111 22 33', null, '  \n '), base);
+  assert.ok(!base.includes('Комментарий'));
+});
+
+test('заполненный комментарий идёт последней строкой', () => {
+  const text = buildMessage(LINES, '+7 701 111 22 33', null, 'Заберу\nв субботу');
+  assert.ok(text.endsWith('\nМой телефон: +7 701 111 22 33\nКомментарий: Заберу в субботу'));
+});
+
+test('комментарий доходит в ссылку без потерь', () => {
+  process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = '77010000000';
+  const url = buildWhatsappUrl(LINES, '', null, 'Нужен счёт');
+  const decoded = decodeURIComponent(url.slice(url.indexOf('?text=') + 6));
+  assert.ok(decoded.endsWith('Комментарий: Нужен счёт'));
+});
