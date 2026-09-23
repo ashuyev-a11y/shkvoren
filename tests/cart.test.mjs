@@ -100,7 +100,9 @@ test('количество ограничено остатком склада', 
   assert.equal(useCart.getState().items.length, 0);
 });
 
-// --- Карточка товара и комментарий (решение 18.1) --------------------------
+// --- Стор корзины для карточки и комментарий (решение 18.1) ----------------
+// Здесь проверяется только стор: setQty с предложенной ценой. Саму страницу
+// /product/:id эти тесты не открывают — это делает tests/e2e/product-offer.e2e.mjs.
 
 const DRUM = {
   id: 5,
@@ -114,11 +116,11 @@ const DRUM = {
   qty: 3,
 };
 
-test('цена с карточки попадает в корзину вместе с позицией', async () => {
+test('стор: setQty с предложенной ценой сохраняет её в позиции', async () => {
   globalThis.window = { localStorage: empty };
   const { useCart, cartTotal, effectiveCartTotal } = await import('../lib/cart.ts?card');
 
-  // Карточка: добавление сразу с предложенной ценой.
+  // Так вызывает стор карточка: добавление сразу с предложенной ценой.
   useCart.getState().setQty(DRUM, 2, 15_000);
   const item = useCart.getState().items[0];
   assert.equal(item.offeredPrice, 15_000);
@@ -138,7 +140,7 @@ test('цена с карточки попадает в корзину вмест
   assert.equal(useCart.getState().items[0].offeredPrice, null);
 });
 
-test('карточка и корзина дают одинаковый расчёт', async () => {
+test('стор: цена через setQty и через setOfferedPrice считается одинаково', async () => {
   globalThis.window = { localStorage: empty };
   const { useCart, effectiveCartTotal } = await import('../lib/cart.ts?same');
 
