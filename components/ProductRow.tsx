@@ -11,24 +11,24 @@
 'use client';
 
 import Link from 'next/link';
-import { useCart } from '../lib/cart';
+import { usePartOffer } from '../lib/offer';
 import { useToast } from '../lib/toast';
 import { ArticleChip } from './ArticleChip';
+import { OfferPrice } from './OfferPrice';
 import { Price } from './Price';
 import { QuantityControl } from './QuantityControl';
 import { StockBadge } from './StockBadge';
 import type { PublicPart } from '../types/part';
 
 export function ProductRow({ part }: { part: PublicPart }) {
-  const qty = useCart((s) => s.items.find((i) => i.id === part.id)?.qty ?? 0);
-  const setQty = useCart((s) => s.setQty);
+  // Предложение цены прямо на витрине (решение 18.1) — тот же хук, что у карточки.
+  const { qty, inCart, offer, changeOffer, changeQty } = usePartOffer(part);
   const show = useToast((s) => s.show);
 
   const outOfStock = part.qty <= 0;
-  const inCart = qty > 0;
 
   function add() {
-    setQty(part, Math.max(qty, 1));
+    changeQty(Math.max(qty, 1));
     show('Добавлено в заказ');
   }
 
@@ -75,18 +75,25 @@ export function ProductRow({ part }: { part: PublicPart }) {
           className="relative z-10 col-span-2 flex items-center justify-between gap-3 md:col-span-1 md:contents"
           onClick={(e) => e.stopPropagation()}
         >
-          <QuantityControl
-            value={qty}
-            max={part.qty}
-            onChange={(next) => setQty(part, next)}
-            title={part.title}
-          />
+          {/*
+            На десктопе обёртка — display: contents, её z-10 не действует,
+            и растянутая ссылка строки перекрывала «+» и «В заказ»: клик
+            открывал карточку. Поэтому слой поднят у самих элементов.
+          */}
+          <div className="relative z-10">
+            <QuantityControl
+              value={qty}
+              max={part.qty}
+              onChange={changeQty}
+              title={part.title}
+            />
+          </div>
 
           <button
             type="button"
             onClick={add}
             disabled={outOfStock}
-            className={`t-body-strong rounded-md px-4 ${
+            className={`t-body-strong relative z-10 rounded-md px-4 ${
               inCart
                 ? 'text-on-whatsapp bg-whatsapp'
                 : 'bg-signal text-on-signal disabled:opacity-40'
@@ -95,6 +102,29 @@ export function ProductRow({ part }: { part: PublicPart }) {
             {inCart ? 'В заказе' : 'В заказ'}
           </button>
         </div>
+
+        {/*
+          Торг по позиции на витрине (решение 18.1): свёрнутая ссылка под строкой,
+          на всю ширину. Слой выше растянутой ссылки — клик не открывает карточку.
+        */}
+        {!outOfStock && (
+          <div
+            className="relative z-10 col-span-2 md:col-span-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <OfferPrice
+              value={offer}
+              onChange={changeOffer}
+              label={`Ваша цена за шт: ${part.title}`}
+              linkLabel="Предложить свою цену"
+              hint={
+                inCart
+                  ? 'Цена сохранена в заказе. Продавец подтвердит её в переписке.'
+                  : 'Цена уйдёт в заказ вместе с позицией.'
+              }
+            />
+          </div>
+        )}
       </div>
     </li>
   );

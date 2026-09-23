@@ -8,8 +8,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
 import { useCart } from '../lib/cart';
+import { usePartOffer } from '../lib/offer';
 import { useToast } from '../lib/toast';
 import { buildWhatsappUrl } from '../lib/whatsapp';
 import { ArticleChip } from './ArticleChip';
@@ -20,35 +20,10 @@ import { StockBadge } from './StockBadge';
 import type { PublicPart } from '../types/part';
 
 export function ProductDetail({ part }: { part: PublicPart }) {
-  const qty = useCart((s) => s.items.find((i) => i.id === part.id)?.qty ?? 0);
-  const setQty = useCart((s) => s.setQty);
-  const setOfferedPrice = useCart((s) => s.setOfferedPrice);
-  const cartOffer = useCart(
-    (s) => s.items.find((i) => i.id === part.id)?.offeredPrice ?? null
-  );
+  // Предложение цены (решение 18.1) — общий хук со строкой каталога.
+  const { qty, inCart, offer, changeOffer, changeQty } = usePartOffer(part);
   const phone = useCart((s) => s.phone);
   const show = useToast((s) => s.show);
-
-  const inCart = qty > 0;
-
-  /*
-   * Предложение цены с карточки (решение 18.1). Пока позиции нет в корзине,
-   * хранить его негде, кроме самой карточки: строка корзины появляется
-   * только при добавлении. Поэтому до добавления цена живёт здесь и уходит
-   * в корзину вместе с позицией, а после — правится прямо в корзине.
-   */
-  const [pendingOffer, setPendingOffer] = useState<number | null>(null);
-  const offer = inCart ? cartOffer : pendingOffer;
-
-  function changeOffer(next: number | null) {
-    if (inCart) setOfferedPrice(part.id, next);
-    else setPendingOffer(next);
-  }
-
-  /** Изменить количество; при первом добавлении забрать предложение с карточки. */
-  function changeQty(next: number) {
-    setQty(part, next, inCart ? undefined : pendingOffer);
-  }
 
   function add() {
     changeQty(Math.max(qty, 1));
