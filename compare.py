@@ -333,8 +333,9 @@ def read_google_sheet(sheet_id: str, sheet: str) -> pd.DataFrame | None:
     Ключ сервисного аккаунта — в переменных окружения GOOGLE_SERVICE_ACCOUNT_EMAIL
     и GOOGLE_PRIVATE_KEY (как у сайта). Нет ключа — None, читается файл.
     """
-    email = os.environ.get("GOOGLE_SERVICE_ACCOUNT_EMAIL")
-    key = os.environ.get("GOOGLE_PRIVATE_KEY")
+    # Значения могут прийти в кавычках, если их скопировали из .env.local как есть.
+    email = os.environ.get("GOOGLE_SERVICE_ACCOUNT_EMAIL", "").strip().strip("'\"")
+    key = os.environ.get("GOOGLE_PRIVATE_KEY", "").strip().strip("'\"")
     if not (email and key):
         return None
     from google.auth.transport.requests import AuthorizedSession
