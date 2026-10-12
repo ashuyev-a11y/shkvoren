@@ -640,7 +640,7 @@ def write_totals(ws, rows, suppliers, settings):
         "Наценка = наша цена / цена поставщика − 1. +40% значит, что мы на 40% дороже.",
         f"Наша цена: {settings['our'].get('price_note', '')}. Цены поставщиков: {settings.get('supplier_price_note', '')}.",
         "Медиана надёжнее средней: одна ошибочная цена её почти не сдвигает.",
-        "Считаются только товары, найденные у поставщиков с производителем ГАЗ/УАЗ.",
+        "Считаются только товары, найденные у поставщиков с производителем ГАЗ/УАЗ, ЗМЗ, УМЗ.",
     ]
     ws.append([])
     for n in notes:
@@ -732,7 +732,7 @@ def write_report(path, products, matches, rows, hints, suppliers, settings, sour
           for c, v in (settings.get("rates") or {}).items()],
         ["Наша цена", settings["our"].get("price_note", "")],
         ["Цены поставщиков", settings.get("supplier_price_note", "")],
-        ["Аналоги в расчёте", "да" if settings.get("count_analogs") else "нет, только ГАЗ/УАЗ"],
+        ["Аналоги в расчёте", "да" if settings.get("count_analogs") else "нет, только ГАЗ/УАЗ (с ЗМЗ и УМЗ)"],
         ["Выброс", f"цена дальше от медианы больше чем в {settings.get('outlier_factor', 3)} раза"],
         *[[f"Файл: {k}", v] for k, v in sources.items()],
         ["Подсказки по названию", "в расчёт не идут"],
