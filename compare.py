@@ -613,16 +613,53 @@ DETAIL_WIDTHS = {
 DETAIL_FORMATS = {"Наша цена, ₸": MONEY, "Цена, ₸": MONEY, "Цена в прайсе": "#,##0.00"}
 
 
+def markup_stats(pairs: list[tuple[float, float]]) -> list:
+    """Наценка нашей цены к цене поставщика: [товаров, медиана, средняя, мы дороже, мы дешевле]."""
+    pct = [ours / theirs - 1 for ours, theirs in pairs if ours and theirs]
+    if not pct:
+        return [0, None, None, 0, 0]
+    return [len(pct), median(pct), mean(pct), sum(x > 0 for x in pct), sum(x < 0 for x in pct)]
+
+
+def write_totals(ws, rows, suppliers, settings):
+    """Насколько наша цена выше оптовой: в целом и по каждому поставщику."""
+    matched = [r for r in rows if r["n"]]
+    clean = [r for r in matched if not r["review"]]
+    body = [
+        ["Средняя цена поставщиков", *markup_stats([(r["p"].price, r["mean"]) for r in matched])],
+        ["Средняя цена поставщиков, без строк на проверку", *markup_stats([(r["p"].price, r["mean"]) for r in clean])],
+        ["Минимальная цена поставщиков", *markup_stats([(r["p"].price, r["min"]) for r in matched])],
+        *[[s, *markup_stats([(r["p"].price, r["per_supplier"][s]) for r in matched if s in r["per_supplier"]])]
+          for s in suppliers],
+    ]
+    headers = ["Сравниваем с", "Товаров", "Наценка, медиана", "Наценка, средняя", "Мы дороже", "Мы дешевле"]
+    write_sheet(ws, headers, body, {"Сравниваем с": 48, "Наценка, медиана": 18, "Наценка, средняя": 18},
+                {"Наценка, медиана": PCT, "Наценка, средняя": PCT})
+    ws.auto_filter.ref = None
+    notes = [
+        "Наценка = наша цена / цена поставщика − 1. +40% значит, что мы на 40% дороже.",
+        f"Наша цена: {settings['our'].get('price_note', '')}. Цены поставщиков: {settings.get('supplier_price_note', '')}.",
+        "Медиана надёжнее средней: одна ошибочная цена её почти не сдвигает.",
+        "Считаются только товары, найденные у поставщиков с производителем ГАЗ/УАЗ.",
+    ]
+    ws.append([])
+    for n in notes:
+        ws.append([n])
+
+
 def write_report(path, products, matches, rows, hints, suppliers, settings, sources):
     wb = Workbook()
 
     ws = wb.active
-    ws.title = "Сводка"
+    ws.title = "Итоги"
+    write_totals(ws, rows, suppliers, settings)
+
+    ws = wb.create_sheet("Сводка")
     sup_cols = [f"{s}, ₸" for s in suppliers]
     headers = [
         "ID", "Артикул", "Артикул у поставщиков", "Наименование", "Подходит к авто", "Категория", "Наша цена, ₸",
         "Найдено у поставщиков", "Мин, ₸", "У кого минимум", "Макс, ₸", "Средняя, ₸", "Медиана, ₸",
-        "Отклонение от средней", "Отклонение от медианы", *sup_cols,
+        "Наценка к средней", "Наценка к медиане", *sup_cols,
         "Аналогов (не в расчёте)", "Мин. цена аналога, ₸", "Строк на проверку", "Статус",
     ]
     body = []
@@ -635,7 +672,7 @@ def write_report(path, products, matches, rows, hints, suppliers, settings, sour
             r["analogs"] or None, r["analog_min"], r["review"] or None, r["status"],
         ])
     fmts = {h: MONEY for h in ["Наша цена, ₸", "Мин, ₸", "Макс, ₸", "Средняя, ₸", "Медиана, ₸", "Мин. цена аналога, ₸", *sup_cols]}
-    fmts.update({"Отклонение от средней": PCT, "Отклонение от медианы": PCT})
+    fmts.update({"Наценка к средней": PCT, "Наценка к медиане": PCT})
     write_sheet(ws, headers, body, {"Наименование": 40, "Артикул": 18, "Артикул у поставщиков": 22, "У кого минимум": 18, "Подходит к авто": 14}, fmts)
     width = len(headers)
     for i, r in enumerate(rows, start=2):
@@ -694,6 +731,7 @@ def write_report(path, products, matches, rows, hints, suppliers, settings, sour
         *[[f"Курс {c}", f"{v} ₸ ({settings.get('rates_source', '')}, {settings.get('rates_date', '')})"]
           for c, v in (settings.get("rates") or {}).items()],
         ["Наша цена", settings["our"].get("price_note", "")],
+        ["Цены поставщиков", settings.get("supplier_price_note", "")],
         ["Аналоги в расчёте", "да" if settings.get("count_analogs") else "нет, только ГАЗ/УАЗ"],
         ["Выброс", f"цена дальше от медианы больше чем в {settings.get('outlier_factor', 3)} раза"],
         *[[f"Файл: {k}", v] for k, v in sources.items()],
