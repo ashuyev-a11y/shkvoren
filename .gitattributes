@@ -3,3 +3,5 @@ styles/tokens.css linguist-generated=true -diff
 
 # Снимок данных — бинарный, не пытаться сливать.
 *.xlsx binary
+*.xls binary
+*.xlsb binary

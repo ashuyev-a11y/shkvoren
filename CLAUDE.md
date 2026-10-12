@@ -112,6 +112,12 @@ tests/
   *.test.mjs      107 unit-тестов: cart 8, format 5, orders 24, parts 22,
                   search 16, telegram 15, whatsapp 17
   e2e/*.e2e.mjs   4 браузерных теста (витрина и карточка, десктоп и телефон)
+
+compare.py           сравнение цен с поставщиками (Python, к сайту не относится)
+config/              settings.yaml, suppliers.yaml, brands.yaml — его настройки
+data/our/            Шаблон_учета_запчастей.xlsx — наш каталог для сравнения
+data/suppliers/      прайсы поставщиков (Автоград .xls в рублях, Росзапчасть .xlsx в тенге)
+result/              price_comparison_<дата>.xlsx; описание — README_prices.md
 ```
 
 ### Команды
@@ -318,6 +324,7 @@ aud: 'https://oauth2.googleapis.com/token', iat, exp: iat+3600}`, подпись
 | Задача 15: торг на карточке + комментарий к заказу (решение 18.1) | `ff7ee3c` |
 | Задача 16: e2e-тест карточки, честные имена unit-тестов | `1eca4ef` |
 | Торг на витрине (строка каталога) + фикс перекрытия «+»/«В заказ» | `cfec714` |
+| Сравнение цен с прайсами поставщиков (`compare.py`, README_prices.md) | см. `git log` |
 
 ### Торг — как устроен (решения 18, 18.1)
 
