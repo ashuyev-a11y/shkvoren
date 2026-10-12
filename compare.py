@@ -12,6 +12,7 @@ config/suppliers.yaml (как читать каждый прайс), config/bran
 from __future__ import annotations
 
 import math
+import os
 import re
 import sys
 from collections import Counter, defaultdict
@@ -19,6 +20,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 from statistics import mean, median
+from urllib.parse import quote
 
 import pandas as pd
 import yaml
@@ -325,10 +327,49 @@ class Product:
     tokens: set[str]
 
 
-def load_our(settings: dict) -> list[Product]:
+def read_google_sheet(sheet_id: str, sheet: str) -> pd.DataFrame | None:
+    """Лист Google-таблицы через Sheets API, только чтение.
+
+    Ключ сервисного аккаунта — в переменных окружения GOOGLE_SERVICE_ACCOUNT_EMAIL
+    и GOOGLE_PRIVATE_KEY (как у сайта). Нет ключа — None, читается файл.
+    """
+    email = os.environ.get("GOOGLE_SERVICE_ACCOUNT_EMAIL")
+    key = os.environ.get("GOOGLE_PRIVATE_KEY")
+    if not (email and key):
+        return None
+    from google.auth.transport.requests import AuthorizedSession
+    from google.oauth2 import service_account
+
+    creds = service_account.Credentials.from_service_account_info(
+        {"client_email": email, "private_key": key.replace("\\n", "\n"), "token_uri": "https://oauth2.googleapis.com/token"},
+        scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
+    )
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{quote(sheet)}"
+    try:
+        resp = AuthorizedSession(creds).get(url, params={"valueRenderOption": "UNFORMATTED_VALUE"}, timeout=60)
+    except Exception as e:  # ключ не принят, нет сети
+        sys.exit(f"Google-таблица не прочиталась: {e}")
+    if resp.status_code != 200:
+        sys.exit(f"Google-таблица не прочиталась: {resp.status_code} {resp.text[:300]}")
+    rows = resp.json().get("values", [])
+    width = max((len(r) for r in rows), default=0)
+    return pd.DataFrame([r + [None] * (width - len(r)) for r in rows], dtype=object)
+
+
+def load_our(settings: dict) -> tuple[list[Product], str]:
     cfg = settings["our"]
-    path = resolve_file(cfg["file"])
-    table = table_from_raw(read_raw(path, cfg["sheet"]), cfg.get("header_row"), cfg["columns"], f"наш каталог / {path.name}")
+    raw = None
+    if cfg.get("source", "auto") in ("auto", "google") and cfg.get("google_sheet_id"):
+        raw = read_google_sheet(cfg["google_sheet_id"], cfg["sheet"])
+        if raw is None and cfg.get("source") == "google":
+            sys.exit("source: google, но нет GOOGLE_SERVICE_ACCOUNT_EMAIL и GOOGLE_PRIVATE_KEY в окружении")
+    if raw is not None:
+        source = f"Google-таблица {cfg['google_sheet_id']}, лист «{cfg['sheet']}», прочитана {date.today().isoformat()}"
+    else:
+        path = resolve_file(cfg["file"])
+        raw = read_raw(path, cfg["sheet"])
+        source = str(path.relative_to(ROOT))
+    table = table_from_raw(raw, cfg.get("header_row"), cfg["columns"], f"наш каталог / {source}")
     rate = 1.0 if cfg.get("currency", "KZT") == settings["report_currency"] else float(settings["rates"][cfg["currency"]])
     min_len = int(settings.get("min_article_length", 0))
     products = []
@@ -354,8 +395,8 @@ def load_our(settings: dict) -> list[Product]:
                 tokens=name_tokens(name),
             )
         )
-    print(f"  наш каталог: {path.name}, товаров {len(products)}, с артикулом {sum(bool(p.article) for p in products)}")
-    return products
+    print(f"  наш каталог: {source}, товаров {len(products)}, с артикулом {sum(bool(p.article) for p in products)}")
+    return products, source
 
 
 # ---------------------------------------------------------------- сопоставление
@@ -755,9 +796,9 @@ def main() -> None:
         sys.exit("В config/suppliers.yaml нет ни одного поставщика")
 
     print("Читаю файлы")
-    products = load_our(settings)
+    products, our_source = load_our(settings)
     offers: list[Offer] = []
-    sources = {"наш каталог": settings["our"]["file"]}
+    sources = {"наш каталог": our_source}
     for cfg in supplier_cfgs:
         loaded = load_supplier(cfg, settings, brands)
         offers.extend(loaded)

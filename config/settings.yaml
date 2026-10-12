@@ -2,6 +2,11 @@
 
 # Наш каталог.
 our:
+  # Откуда брать каталог: google — Google-таблица сайта, file — файл ниже,
+  # auto — Google-таблица, если в окружении есть ключ сервисного аккаунта
+  # (GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY), иначе файл.
+  source: auto
+  google_sheet_id: 1d5s88Jg3N6ohaeTfKUD15VwuKMjogoGzNECsYTms94U
   file: data/our/Шаблон_учета_запчастей.xlsx
   sheet: Запчасти
   header_row: 1
