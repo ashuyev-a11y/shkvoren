@@ -410,13 +410,13 @@ def match_all(products: list[Product], offers: list[Offer], settings: dict):
         if p.article:
             for i in by_article.get(p.article, []):
                 found.setdefault(i, M_EXACT)
-            for k in p.keys:
+            for k in sorted(p.keys):
                 for i in by_key.get(k, []):
                     found.setdefault(i, M_FACTORY)
             for i in by_oem.get(p.article, []):
                 found.setdefault(i, M_OEM)
         own = []
-        for i, method in found.items():
+        for i, method in sorted(found.items()):
             o = offers[i]
             m = Match(p, o, method)
             if o.price is None:
@@ -477,7 +477,7 @@ def name_hints(products, offers, matched_ids, similarity, settings) -> dict[str,
             if len(by_token[t]) < 3000:  # слишком частое слово не сужает поиск
                 candidates.update(by_token[t])
         scored = sorted(
-            ((similarity(p, offers[i]), offers[i]) for i in candidates),
+            ((similarity(p, offers[i]), offers[i]) for i in sorted(candidates)),
             key=lambda x: (-x[0], x[1].brand_kind != Brands.ORIGINAL, len(x[1].name)),
         )
         hints[p.id] = [(s, o) for s, o in scored if s >= threshold][:limit]
