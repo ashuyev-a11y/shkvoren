@@ -361,7 +361,7 @@ def load_our(settings: dict) -> list[Product]:
 # ---------------------------------------------------------------- сопоставление
 
 M_EXACT = "артикул"
-M_FACTORY = "артикул без модификации/исполнения"
+M_FACTORY = "артикул без точек, тире и кода модификации"
 M_OEM = "кросс (OEM)"
 
 
@@ -373,6 +373,7 @@ class Match:
     in_calc: bool = False
     notes: list[str] = field(default_factory=list)  # почему на проверку
     excluded: str = ""  # почему не в расчёте
+    names_differ: bool = False
 
 
 def match_all(products: list[Product], offers: list[Offer], settings: dict):
@@ -427,13 +428,12 @@ def match_all(products: list[Product], offers: list[Offer], settings: dict):
                 m.excluded = "аналог, не ГАЗ/УАЗ"
             else:
                 m.in_calc = True
-            if method == M_FACTORY:
-                m.notes.append("артикул совпал без учёта модификации/исполнения")
             if o.pack:
                 m.notes.append(f"цена за «{o.unit}», возможно не за штуку")
             if our_article_count[p.article] > 1:
                 m.notes.append("этот артикул у нас у нескольких товаров")
             if o.tokens and p.tokens and similarity(p, o) == 0:
+                m.names_differ = True
                 m.notes.append("в названиях нет общих слов")
             own.append(m)
 
@@ -487,6 +487,30 @@ def name_hints(products, offers, matched_ids, similarity, settings) -> dict[str,
 # ---------------------------------------------------------------- расчёт
 
 
+HAS_SEPARATOR = re.compile(r"[\s\-.]")
+
+
+def supplier_article(own: list[Match]) -> tuple[str, str]:
+    """Как артикул пишут поставщики: с точками и тире, по которым его находит поиск.
+
+    Берётся из совпадений с похожим названием, сначала у ГАЗ/УАЗ.
+    Возвращает (артикул, пример: поставщик и наименование).
+    """
+    for original_only in (True, False):
+        pool = [
+            m for m in own
+            if not m.names_differ
+            and HAS_SEPARATOR.search(m.offer.article_raw)
+            and (m.offer.brand_kind == Brands.ORIGINAL or not original_only)
+        ]
+        if pool:
+            spelled = Counter(re.sub(r"\s+", " ", m.offer.article_raw) for m in pool)
+            best = spelled.most_common(1)[0][0]
+            example = next(m for m in pool if re.sub(r"\s+", " ", m.offer.article_raw) == best)
+            return best, f"{example.offer.supplier}: {example.offer.name}"
+    return "", ""
+
+
 def summarize(products, matches, suppliers):
     by_product = defaultdict(list)
     for m in matches:
@@ -509,6 +533,7 @@ def summarize(products, matches, suppliers):
             "analogs": len(analogs),
             "analog_min": min(analogs) if analogs else None,
             "review": sum(bool(m.notes) for m in own),
+            "supplier_article": supplier_article(own),
         }
         if prices:
             lo = min(prices)
@@ -595,7 +620,7 @@ def write_report(path, products, matches, rows, hints, suppliers, settings, sour
     ws.title = "Сводка"
     sup_cols = [f"{s}, ₸" for s in suppliers]
     headers = [
-        "ID", "Артикул", "Наименование", "Подходит к авто", "Категория", "Наша цена, ₸",
+        "ID", "Артикул", "Артикул у поставщиков", "Наименование", "Подходит к авто", "Категория", "Наша цена, ₸",
         "Найдено у поставщиков", "Мин, ₸", "У кого минимум", "Макс, ₸", "Средняя, ₸", "Медиана, ₸",
         "Отклонение от средней", "Отклонение от медианы", *sup_cols,
         "Аналогов (не в расчёте)", "Мин. цена аналога, ₸", "Строк на проверку", "Статус",
@@ -604,14 +629,14 @@ def write_report(path, products, matches, rows, hints, suppliers, settings, sour
     for r in rows:
         p = r["p"]
         body.append([
-            p.id, p.article_raw, p.name, p.car, p.category, p.price,
+            p.id, p.article_raw, r["supplier_article"][0] or None, p.name, p.car, p.category, p.price,
             r["n"], r.get("min"), r.get("who_min"), r.get("max"), r.get("mean"), r.get("median"),
             r.get("dev_mean"), r.get("dev_median"), *[r["per_supplier"].get(s) for s in suppliers],
             r["analogs"] or None, r["analog_min"], r["review"] or None, r["status"],
         ])
     fmts = {h: MONEY for h in ["Наша цена, ₸", "Мин, ₸", "Макс, ₸", "Средняя, ₸", "Медиана, ₸", "Мин. цена аналога, ₸", *sup_cols]}
     fmts.update({"Отклонение от средней": PCT, "Отклонение от медианы": PCT})
-    write_sheet(ws, headers, body, {"Наименование": 40, "Артикул": 18, "У кого минимум": 18, "Подходит к авто": 14}, fmts)
+    write_sheet(ws, headers, body, {"Наименование": 40, "Артикул": 18, "Артикул у поставщиков": 22, "У кого минимум": 18, "Подходит к авто": 14}, fmts)
     width = len(headers)
     for i, r in enumerate(rows, start=2):
         dev = r.get("dev_mean")
@@ -649,12 +674,26 @@ def write_report(path, products, matches, rows, hints, suppliers, settings, sour
                 {"Наименование": 34, "Причина": 26, **{f"Подсказка по названию {i}": 70 for i in range(1, limit + 1)}},
                 {"Наша цена, ₸": MONEY})
 
+    ws = wb.create_sheet("Артикулы")
+    art_rows = [
+        [r["p"].id, r["p"].article_raw, r["supplier_article"][0], r["p"].name, r["supplier_article"][1]]
+        for r in rows
+        if r["supplier_article"][0] and not HAS_SEPARATOR.search(r["p"].article_raw)
+    ]
+    write_sheet(
+        ws,
+        ["ID", "Наш артикул", "Как пишут поставщики", "Наше наименование", "Пример у поставщика"],
+        art_rows,
+        {"Наш артикул": 18, "Как пишут поставщики": 24, "Наше наименование": 40, "Пример у поставщика": 80},
+    )
+
     ws = wb.create_sheet("Параметры")
     info = [
         ["Дата расчёта", date.today().isoformat()],
         ["Валюта отчёта", settings["report_currency"]],
         *[[f"Курс {c}", f"{v} ₸ ({settings.get('rates_source', '')}, {settings.get('rates_date', '')})"]
           for c, v in (settings.get("rates") or {}).items()],
+        ["Наша цена", settings["our"].get("price_note", "")],
         ["Аналоги в расчёте", "да" if settings.get("count_analogs") else "нет, только ГАЗ/УАЗ"],
         ["Выброс", f"цена дальше от медианы больше чем в {settings.get('outlier_factor', 3)} раза"],
         *[[f"Файл: {k}", v] for k, v in sources.items()],

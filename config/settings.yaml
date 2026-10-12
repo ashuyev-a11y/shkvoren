@@ -6,6 +6,7 @@ our:
   sheet: Запчасти
   header_row: 1
   currency: KZT
+  price_note: розничная цена продажи (колонка «Цена продажи»)
   columns:
     id: ID
     article: Артикул
